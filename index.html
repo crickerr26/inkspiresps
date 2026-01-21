@@ -2077,15 +2077,20 @@
           return; // Stop if unsaved data was found and restored
       }
 
-      // 4. If no unsaved data, check for a last-saved date from Firestore
+      // 4. If no unsaved data is found locally, prepare to load from server
       const savedDate = localStorage.getItem('inkspire_last_daily_sheet_date');
+      
       if (savedDate) {
           document.getElementById('daily-sheet-date').value = savedDate;
-          loadDailySheet(); // Automatically load the data for the saved date
       } else {
+          // If no local history, default to today's date
           document.getElementById('daily-sheet-date').value = new Date().toISOString().split('T')[0];
-          clearDailySheet(); // Start with a clean sheet for today
       }
+
+      // FIX: Always attempt to load from database. 
+      // If data exists for this date, it will show up. 
+      // If not, 'loadDailySheet' handles creating a blank state safely.
+      loadDailySheet();
   }
   
   function populateSalesTable() {
