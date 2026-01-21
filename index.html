@@ -675,7 +675,8 @@
         }
         
         .sheet-table th:nth-child(1), .sheet-table td:nth-child(1) { width: 40px; text-align: right; }
-        .sheet-table th:nth-child(2), .sheet-table td:nth-child(2) { text-align: left; }
+        /* Added min-width so the input doesn't collapse on phones */
+        .sheet-table th:nth-child(2), .sheet-table td:nth-child(2) { text-align: left; min-width: 200px; }
         .sheet-table th:nth-child(3), .sheet-table td:nth-child(3) { width: 60px; text-align: right; }
         .sheet-table th:nth-child(4), .sheet-table td:nth-child(4) { width: 80px; text-align: right; }
         .sheet-table th:nth-child(5), .sheet-table td:nth-child(5) { width: 140px; text-align: center; }
@@ -849,7 +850,7 @@
                             <input type="number" id="total-customers" class="bg-purple-400 text-white placeholder-purple-200 rounded-md border-purple-300 w-20 p-0.5 text-center text-xs">
                         </div>
                     </div>
-                    <div id="sales-table-container" class="overflow-y-auto h-[400px]">
+                    <div id="sales-table-container" class="overflow-y-auto overflow-x-auto h-[400px]">
                         <table class="sheet-table min-w-[600px]">
                             <thead>
                                 <tr>
