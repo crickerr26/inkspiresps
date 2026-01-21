@@ -915,6 +915,46 @@
                     <div class="summary-row pt-2"><span class="summary-label">Yesterday Petti</span><input type="number" id="summary-yesterday-petti" class="summary-input" value="0"></div>
                     <div class="summary-row"><span class="summary-label">Handover</span><input type="number" id="summary-handover" class="summary-input" value="0"></div>
                      <div class="summary-row bg-green-50 -mx-2 px-2 py-1 rounded-md"><span class="summary-label text-green-800">Cash in hand</span><span class="summary-value text-green-800" id="summary-cash-in-hand">Rs. 0.00</span></div>
+                    
+                    <div class="mt-4 border-t pt-4">
+                        <h4 class="font-bold text-gray-700 text-sm mb-2">🔢 Cash Counter</h4>
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                            <div class="flex justify-between items-center">
+                                <label class="font-semibold text-gray-600">5000 x</label>
+                                <input type="number" id="count-5000" class="summary-input w-12" placeholder="0">
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <label class="font-semibold text-gray-600">1000 x</label>
+                                <input type="number" id="count-1000" class="summary-input w-12" placeholder="0">
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <label class="font-semibold text-gray-600">500 x</label>
+                                <input type="number" id="count-500" class="summary-input w-12" placeholder="0">
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <label class="font-semibold text-gray-600">100 x</label>
+                                <input type="number" id="count-100" class="summary-input w-12" placeholder="0">
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <label class="font-semibold text-gray-600">10 x</label>
+                                <input type="number" id="count-10" class="summary-input w-12" placeholder="0">
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <label class="font-semibold text-gray-600">5 x</label>
+                                <input type="number" id="count-5" class="summary-input w-12" placeholder="0">
+                            </div>
+                        </div>
+                        <div class="mt-3 space-y-1">
+                            <div class="summary-row">
+                                <span class="summary-label">Drawer Cash</span>
+                                <span class="summary-value" id="drawer-total">Rs. 0.00</span>
+                            </div>
+                            <div class="summary-row">
+                                <span class="summary-label">Difference</span>
+                                <span class="summary-value" id="drawer-diff">Tallied</span>
+                            </div>
+                        </div>
+                    </div>
                     <button onclick="saveDailySheet()" class="w-full mt-4 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow-md no-print text-sm">💾 Save Updates</button>
                 </div>
             </div>
@@ -2198,12 +2238,39 @@
       
       document.getElementById('summary-net-sale').textContent = `Rs. ${formatWithCommas(netSale)}`;
       document.getElementById('summary-cash-in-hand').textContent = `Rs. ${formatWithCommas(cashInHand)}`;
-      // Removed the duplicate "Petti Cash" update here
       
+      // --- CASH COUNTER LOGIC ---
+      const c5000 = parseInt(document.getElementById('count-5000').value) || 0;
+      const c1000 = parseInt(document.getElementById('count-1000').value) || 0;
+      const c500 = parseInt(document.getElementById('count-500').value) || 0;
+      const c100 = parseInt(document.getElementById('count-100').value) || 0;
+      const c10 = parseInt(document.getElementById('count-10').value) || 0;
+      const c5 = parseInt(document.getElementById('count-5').value) || 0;
+
+      const totalDrawerCash = (c5000 * 5000) + (c1000 * 1000) + (c500 * 500) + (c100 * 100) + (c10 * 10) + (c5 * 5);
+      
+      document.getElementById('drawer-total').textContent = `Rs. ${formatWithCommas(totalDrawerCash)}`;
+
+      // Calculate Difference
+      const diff = totalDrawerCash - cashInHand;
+      const diffEl = document.getElementById('drawer-diff');
+      
+      if (diff === 0) {
+          diffEl.textContent = "Tallied";
+          diffEl.className = "summary-value text-green-700";
+      } else if (diff > 0) {
+          diffEl.textContent = `Extra: Rs. ${formatWithCommas(diff)}`;
+          diffEl.className = "summary-value text-green-600";
+      } else {
+          diffEl.textContent = `Short: Rs. ${formatWithCommas(Math.abs(diff))}`;
+          diffEl.className = "summary-value text-red-600";
+      }
+
       // Auto-save current state to localStorage
       const unsavedData = {
           date, totalCustomers, sales: salesDataForSave, expenses: expensesDataForSave,
-          banked, yesterdayPetti, handover
+          banked, yesterdayPetti, handover,
+          cashCounts: { c5000, c1000, c500, c100, c10, c5 }
       };
       localStorage.setItem('inkspire_unsaved_daily_sheet', JSON.stringify(unsavedData));
 
@@ -2214,6 +2281,7 @@
           saveDailySheet(true); 
       }, 1000); 
   }
+  
   function restoreUnsavedDailySheet() {
       const unsavedDataJSON = localStorage.getItem('inkspire_unsaved_daily_sheet');
       if (!unsavedDataJSON) {
@@ -2249,6 +2317,16 @@
       document.getElementById('summary-yesterday-petti').value = data.yesterdayPetti || 0;
       document.getElementById('summary-handover').value = data.handover || 0;
 
+      // Restore Cash Counts
+      if (data.cashCounts) {
+          document.getElementById('count-5000').value = data.cashCounts.c5000 || '';
+          document.getElementById('count-1000').value = data.cashCounts.c1000 || '';
+          document.getElementById('count-500').value = data.cashCounts.c500 || '';
+          document.getElementById('count-100').value = data.cashCounts.c100 || '';
+          document.getElementById('count-10').value = data.cashCounts.c10 || '';
+          document.getElementById('count-5').value = data.cashCounts.c5 || '';
+      }
+
       calculateDailySheet();
       showToast("Restored your unsaved changes.", false);
       return true;
@@ -2262,6 +2340,12 @@
       document.getElementById('summary-banked').value = '0';
       document.getElementById('summary-yesterday-petti').value = '0';
       document.getElementById('summary-handover').value = '0';
+      
+      // Clear Cash Counts
+      ['count-5000', 'count-1000', 'count-500', 'count-100', 'count-10', 'count-5'].forEach(id => {
+          document.getElementById(id).value = '';
+      });
+
       for(let i = 0; i < 3; i++) addExpenseRow(); // Start with 3 blank expense rows
       calculateDailySheet();
       // After clearing, remove the temporary save so it doesn't reappear
@@ -2312,6 +2396,14 @@
           banked: parseFloat(document.getElementById('summary-banked').value) || 0,
           yesterdayPetti: parseFloat(document.getElementById('summary-yesterday-petti').value) || 0,
           handover: parseFloat(document.getElementById('summary-handover').value) || 0,
+          cashCounts: {
+              c5000: parseInt(document.getElementById('count-5000').value) || 0,
+              c1000: parseInt(document.getElementById('count-1000').value) || 0,
+              c500: parseInt(document.getElementById('count-500').value) || 0,
+              c100: parseInt(document.getElementById('count-100').value) || 0,
+              c10: parseInt(document.getElementById('count-10').value) || 0,
+              c5: parseInt(document.getElementById('count-5').value) || 0
+          },
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
 
@@ -2384,6 +2476,16 @@
               document.getElementById('summary-banked').value = data.banked || 0;
               document.getElementById('summary-yesterday-petti').value = data.yesterdayPetti || 0;
               document.getElementById('summary-handover').value = data.handover || 0;
+
+              // Load Cash Counts
+              if (data.cashCounts) {
+                  document.getElementById('count-5000').value = data.cashCounts.c5000 || '';
+                  document.getElementById('count-1000').value = data.cashCounts.c1000 || '';
+                  document.getElementById('count-500').value = data.cashCounts.c500 || '';
+                  document.getElementById('count-100').value = data.cashCounts.c100 || '';
+                  document.getElementById('count-10').value = data.cashCounts.c10 || '';
+                  document.getElementById('count-5').value = data.cashCounts.c5 || '';
+              }
 
               calculateDailySheet();
               showToast(`Sheet for ${date} loaded.`);
