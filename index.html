@@ -2062,15 +2062,21 @@
 
   // --- DAILY SHEET LOGIC ---
   function initDailySheet() {
-      document.getElementById('daily-sheet').addEventListener('input', calculateDailySheet);
-      populateSalesTable(); // Create the 50-row table
+      // 1. Build the table structure first
+      populateSalesTable(); 
 
-      // Try to restore unsaved data first
-      if (restoreUnsavedDailySheet()) {
-          return; // Stop if unsaved data was restored
+      // 2. Try to restore unsaved data
+      const dataRestored = restoreUnsavedDailySheet();
+
+      // 3. Attach the event listener ONLY after restoration is attempted.
+      // This prevents the calculator from overwriting saved data with "0" during setup.
+      document.getElementById('daily-sheet').addEventListener('input', calculateDailySheet);
+
+      if (dataRestored) {
+          return; // Stop if unsaved data was found and restored
       }
 
-      // If no unsaved data, check for a last-saved date
+      // 4. If no unsaved data, check for a last-saved date from Firestore
       const savedDate = localStorage.getItem('inkspire_last_daily_sheet_date');
       if (savedDate) {
           document.getElementById('daily-sheet-date').value = savedDate;
@@ -2343,7 +2349,7 @@
       window.print();
   }
 
-  async function saveDailySheet(isAutoSave = false) {
+async function saveDailySheet(isAutoSave = false) {
       const date = document.getElementById('daily-sheet-date').value;
       const statusLabel = document.getElementById('auto-save-status');
       
@@ -2405,7 +2411,12 @@
               showToast("Daily Sheet saved successfully!");
           }
 
-          localStorage.removeItem('inkspire_unsaved_daily_sheet'); 
+          // IMPORTANT FIX: Only clear the browser backup if the user MANUALLY clicked Save.
+          // If it's an auto-save, we keep the backup so data persists if the user refreshes immediately.
+          if (!isAutoSave) {
+              localStorage.removeItem('inkspire_unsaved_daily_sheet'); 
+          }
+          
           localStorage.setItem('inkspire_last_daily_sheet_date', date); 
       } catch (err) {
           console.error("Error saving daily sheet: ", err);
