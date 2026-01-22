@@ -675,8 +675,7 @@
         }
         
         .sheet-table th:nth-child(1), .sheet-table td:nth-child(1) { width: 40px; text-align: right; }
-        /* Added min-width so the input doesn't collapse on phones */
-        .sheet-table th:nth-child(2), .sheet-table td:nth-child(2) { text-align: left; min-width: 200px; }
+        .sheet-table th:nth-child(2), .sheet-table td:nth-child(2) { text-align: left; }
         .sheet-table th:nth-child(3), .sheet-table td:nth-child(3) { width: 60px; text-align: right; }
         .sheet-table th:nth-child(4), .sheet-table td:nth-child(4) { width: 80px; text-align: right; }
         .sheet-table th:nth-child(5), .sheet-table td:nth-child(5) { width: 140px; text-align: center; }
@@ -814,17 +813,7 @@
         }
     </style>
     <div id="daily-sheet-print-area">
-        <div class="flex justify-between items-center mb-6">
-             <h2 class="text-2xl font-bold text-purple-700">📄 Daily Petti / Cash Sheet</h2>
-             <div class="flex gap-2 no-print">
-                 <button onclick="saveDailySheet()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow-md text-sm">💾 Save</button>
-                 <button onclick="printDailySheet()" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg shadow-md text-sm">🖨️ Print</button>
-                 <button onclick="shareDailySheetAsPDF()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg shadow-md flex items-center text-sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.017-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
-                    WhatsApp PDF
-                 </button>
-             </div>
-        </div>
+        <h2 class="text-2xl font-bold text-purple-700 mb-6">📄 Daily Petti / Cash Sheet</h2>
 
         <div class="flex flex-wrap items-center gap-4 bg-white p-4 rounded-lg shadow-md mb-6 no-print">
             <div class="flex items-center gap-2">
@@ -850,7 +839,7 @@
                             <input type="number" id="total-customers" class="bg-purple-400 text-white placeholder-purple-200 rounded-md border-purple-300 w-20 p-0.5 text-center text-xs">
                         </div>
                     </div>
-                    <div id="sales-table-container" class="overflow-y-auto overflow-x-auto h-[400px]">
+                    <div id="sales-table-container" class="overflow-y-auto h-[400px]">
                         <table class="sheet-table min-w-[600px]">
                             <thead>
                                 <tr>
@@ -915,50 +904,85 @@
                     <div class="summary-row bg-purple-50 -mx-2 px-2 py-1 rounded-md"><span class="summary-label text-purple-800">Net Sale</span><span class="summary-value text-purple-800" id="summary-net-sale">Rs. 0.00</span></div>
                     <div class="summary-row pt-2"><span class="summary-label">Yesterday Petti</span><input type="number" id="summary-yesterday-petti" class="summary-input" value="0"></div>
                     <div class="summary-row"><span class="summary-label">Handover</span><input type="number" id="summary-handover" class="summary-input" value="0"></div>
-                    <div class="summary-row bg-green-50 -mx-2 px-2 py-1 rounded-md"><span class="summary-label text-green-800">Cash in hand</span><span class="summary-value text-green-800" id="summary-cash-in-hand">Rs. 0.00</span></div>
-                    
-                    <div class="mt-4 pt-2 border-t border-dashed border-gray-300">
-                        <h4 class="text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">💵 Cash Counter</h4>
-                        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                             <div class="flex justify-between items-center"><span>5000 x</span><input type="number" id="cc-5000" class="summary-input w-10 text-center" placeholder="0"></div>
-                             <div class="flex justify-between items-center"><span>1000 x</span><input type="number" id="cc-1000" class="summary-input w-10 text-center" placeholder="0"></div>
-                             <div class="flex justify-between items-center"><span>500 x</span><input type="number" id="cc-500" class="summary-input w-10 text-center" placeholder="0"></div>
-                             <div class="flex justify-between items-center"><span>100 x</span><input type="number" id="cc-100" class="summary-input w-10 text-center" placeholder="0"></div>
-                             <div class="flex justify-between items-center"><span>50 x</span><input type="number" id="cc-50" class="summary-input w-10 text-center" placeholder="0"></div>
-                             <div class="flex justify-between items-center"><span>20 x</span><input type="number" id="cc-20" class="summary-input w-10 text-center" placeholder="0"></div>
-                             <div class="flex justify-between items-center"><span>10 x</span><input type="number" id="cc-10" class="summary-input w-10 text-center" placeholder="0"></div>
-                             <div class="flex justify-between items-center"><span>5 x</span><input type="number" id="cc-5" class="summary-input w-10 text-center" placeholder="0"></div>
-                        </div>
-                        <div class="mt-2 pt-2 border-t border-gray-200 text-xs">
-                             <div class="flex justify-between font-bold text-gray-700">
-                                 <span>Drawer Total:</span>
-                                 <span id="cc-drawer-total">Rs. 0.00</span>
-                             </div>
-                             <div class="flex justify-between font-bold mt-1 p-1 rounded" id="cc-status-row">
-                                 <span>Status:</span>
-                                 <span id="cc-status-text">Tallied</span>
-                             </div>
-                        </div>
-                    </div>
-
+                     <div class="summary-row bg-green-50 -mx-2 px-2 py-1 rounded-md"><span class="summary-label text-green-800">Cash in hand</span><span class="summary-value text-green-800" id="summary-cash-in-hand">Rs. 0.00</span></div>
                     <button onclick="saveDailySheet()" class="w-full mt-4 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow-md no-print text-sm">💾 Save Updates</button>
                 </div>
             </div>
         </div>
     </div>
+    <div class="flex flex-wrap gap-4 mt-6 no-print">
+        <button onclick="saveDailySheet()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-lg shadow-md">💾 Save</button>
+        <button onclick="printDailySheet()" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg shadow-md">🖨️ Print</button>
+        <button onclick="shareDailySheetToWhatsApp()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-lg shadow-md flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.017-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+            WhatsApp
+        </button>
+    </div>
     
     <script>
-    function shareDailySheetAsPDF() {
-        // 1. Alert the user about the workflow
-        alert("ℹ️ To send as PDF:\n\n1. The Print window will open.\n2. Select 'Save as PDF' as the printer destination.\n3. Save the file to your device.\n4. WhatsApp will then open automatically—drag and drop the saved PDF there.");
+    function shareDailySheetToWhatsApp() {
+        const date = document.getElementById('daily-sheet-date').value || "Today";
+        const totalCustomers = document.getElementById('total-customers').value || "0";
         
-        // 2. Open Print Dialog
-        window.print();
+        let message = `*📄 Daily Sheet - ${date}*\n`;
+        message += `Total Customers: ${totalCustomers}\n`;
+        message += `--------------------------------\n`;
+        message += `*SALES*\n`;
+
+        // Gather Sales
+        const salesRows = document.querySelectorAll('#sales-table-body tr');
+        let hasSales = false;
+        salesRows.forEach(row => {
+            const desc = row.querySelector('.sales-desc').value.trim();
+            const qty = row.querySelector('.sales-qty').value;
+            const amt = row.querySelector('.sales-amount').value;
+            
+            // Determine Payment Method Label
+            let payLabel = "";
+            if(row.querySelector('input[value="cash"]').checked) payLabel = " [CASH]";
+            else if(row.querySelector('input[value="credit"]').checked) payLabel = " [CREDIT]";
+            else if(row.querySelector('input[value="bank"]').checked) payLabel = " [BANK]";
+
+            if (desc || amt) {
+                message += `• ${desc ? desc : 'Item'} | Qty: ${qty} | Rs. ${amt}${payLabel}\n`;
+                hasSales = true;
+            }
+        });
+        if(!hasSales) message += "(No sales recorded)\n";
+
+        message += `--------------------------------\n`;
+        message += `*EXPENSES*\n`;
         
-        // 3. Open WhatsApp after a short delay to allow print dialog to appear
-        setTimeout(() => {
-            window.open('https://wa.me/', '_blank');
-        }, 1500);
+        // Gather Expenses
+        const expRows = document.querySelectorAll('#expenses-table-body tr');
+        let hasExp = false;
+        expRows.forEach(row => {
+            const desc = row.querySelector('.expenses-desc').value.trim();
+            const amt = row.querySelector('.expenses-amount').value;
+            if(desc || amt > 0) {
+                message += `• ${desc}: Rs. ${amt}\n`;
+                hasExp = true;
+            }
+        });
+        if(!hasExp) message += "(No expenses)\n";
+
+        message += `--------------------------------\n`;
+        message += `*SUMMARY*\n`;
+        message += `Total Sale: ${document.getElementById('summary-total-sale').textContent}\n`;
+        message += `(Cash: ${document.getElementById('summary-breakdown-cash').textContent} | Credit: ${document.getElementById('summary-breakdown-credit').textContent} | Bank: ${document.getElementById('summary-breakdown-bank').textContent})\n\n`;
+        
+        message += `Banked: Rs. ${document.getElementById('summary-banked').value}\n`;
+        message += `Expenses: ${document.getElementById('summary-expenses').textContent}\n`;
+        message += `*Net Sale: ${document.getElementById('summary-net-sale').textContent}*\n\n`;
+        
+        message += `Yesterday Petti: Rs. ${document.getElementById('summary-yesterday-petti').value}\n`;
+        message += `Handover: Rs. ${document.getElementById('summary-handover').value}\n`;
+        message += `--------------------------------\n`;
+        message += `*CASH IN HAND: ${document.getElementById('summary-cash-in-hand').textContent}*`;
+
+        // Encode and Open WhatsApp
+        const encodedMsg = encodeURIComponent(message);
+        window.open(`https://wa.me/?text=${encodedMsg}`, '_blank');
     }
     </script>
 </section>
@@ -2063,34 +2087,23 @@
 
   // --- DAILY SHEET LOGIC ---
   function initDailySheet() {
-      // 1. Build the table structure first
-      populateSalesTable(); 
-
-      // 2. Try to restore unsaved data
-      const dataRestored = restoreUnsavedDailySheet();
-
-      // 3. Attach the event listener ONLY after restoration is attempted.
-      // This prevents the calculator from overwriting saved data with "0" during setup.
       document.getElementById('daily-sheet').addEventListener('input', calculateDailySheet);
+      populateSalesTable(); // Create the 50-row table
 
-      if (dataRestored) {
-          return; // Stop if unsaved data was found and restored
+      // Try to restore unsaved data first
+      if (restoreUnsavedDailySheet()) {
+          return; // Stop if unsaved data was restored
       }
 
-      // 4. If no unsaved data is found locally, prepare to load from server
+      // If no unsaved data, check for a last-saved date
       const savedDate = localStorage.getItem('inkspire_last_daily_sheet_date');
-      
       if (savedDate) {
           document.getElementById('daily-sheet-date').value = savedDate;
+          loadDailySheet(); // Automatically load the data for the saved date
       } else {
-          // If no local history, default to today's date
           document.getElementById('daily-sheet-date').value = new Date().toISOString().split('T')[0];
+          clearDailySheet(); // Start with a clean sheet for today
       }
-
-      // FIX: Always attempt to load from database. 
-      // If data exists for this date, it will show up. 
-      // If not, 'loadDailySheet' handles creating a blank state safely.
-      loadDailySheet();
   }
   
   function populateSalesTable() {
@@ -2235,45 +2248,12 @@
       
       document.getElementById('summary-net-sale').textContent = `Rs. ${formatWithCommas(netSale)}`;
       document.getElementById('summary-cash-in-hand').textContent = `Rs. ${formatWithCommas(cashInHand)}`;
-
-      // --- NEW: Cash Counter Calculation ---
-      const denoms = [5000, 1000, 500, 100, 50, 20, 10, 5];
-      let drawerTotal = 0;
-      const ccData = {}; // To store for saving
-
-      denoms.forEach(val => {
-          const count = parseFloat(document.getElementById(`cc-${val}`).value) || 0;
-          drawerTotal += (count * val);
-          ccData[val] = count;
-      });
-
-      document.getElementById('cc-drawer-total').textContent = `Rs. ${formatWithCommas(drawerTotal)}`;
+      // Removed the duplicate "Petti Cash" update here
       
-      const ccStatusRow = document.getElementById('cc-status-row');
-      const ccStatusText = document.getElementById('cc-status-text');
-      const diff = drawerTotal - cashInHand;
-
-      // Remove old colors
-      ccStatusRow.classList.remove('bg-red-100', 'text-red-800', 'bg-green-100', 'text-green-800', 'bg-gray-100', 'text-gray-800');
-
-      if (Math.abs(diff) < 1) {
-          // Matched (Tallied)
-          ccStatusText.textContent = "Tallied ✅";
-          ccStatusRow.classList.add('bg-green-50', 'text-green-800');
-      } else if (diff < 0) {
-          // Short
-          ccStatusText.textContent = `Short: Rs. ${formatWithCommas(Math.abs(diff))} ⚠️`;
-          ccStatusRow.classList.add('bg-red-100', 'text-red-800');
-      } else {
-          // Extra
-          ccStatusText.textContent = `Extra: Rs. ${formatWithCommas(diff)} 🤑`;
-          ccStatusRow.classList.add('bg-green-100', 'text-green-800');
-      }
-
       // Auto-save current state to localStorage
       const unsavedData = {
           date, totalCustomers, sales: salesDataForSave, expenses: expensesDataForSave,
-          banked, yesterdayPetti, handover, cashCounts: ccData
+          banked, yesterdayPetti, handover
       };
       localStorage.setItem('inkspire_unsaved_daily_sheet', JSON.stringify(unsavedData));
 
@@ -2319,12 +2299,6 @@
       document.getElementById('summary-yesterday-petti').value = data.yesterdayPetti || 0;
       document.getElementById('summary-handover').value = data.handover || 0;
 
-      if (data.cashCounts) {
-          [5000, 1000, 500, 100, 50, 20, 10, 5].forEach(val => {
-              document.getElementById(`cc-${val}`).value = data.cashCounts[val] || '';
-          });
-      }
-
       calculateDailySheet();
       showToast("Restored your unsaved changes.", false);
       return true;
@@ -2338,13 +2312,6 @@
       document.getElementById('summary-banked').value = '0';
       document.getElementById('summary-yesterday-petti').value = '0';
       document.getElementById('summary-handover').value = '0';
-      
-      // Clear Cash Counter
-      [5000, 1000, 500, 100, 50, 20, 10, 5].forEach(val => {
-          const el = document.getElementById(`cc-${val}`);
-          if(el) el.value = '';
-      });
-
       for(let i = 0; i < 3; i++) addExpenseRow(); // Start with 3 blank expense rows
       calculateDailySheet();
       // After clearing, remove the temporary save so it doesn't reappear
@@ -2355,7 +2322,7 @@
       window.print();
   }
 
-async function saveDailySheet(isAutoSave = false) {
+  async function saveDailySheet(isAutoSave = false) {
       const date = document.getElementById('daily-sheet-date').value;
       const statusLabel = document.getElementById('auto-save-status');
       
@@ -2386,12 +2353,6 @@ async function saveDailySheet(isAutoSave = false) {
               expenses.push({ desc, amount });
           }
       });
-
-      // Gather Cash Counter Data
-      const cashCounts = {};
-      [5000, 1000, 500, 100, 50, 20, 10, 5].forEach(val => {
-          cashCounts[val] = parseFloat(document.getElementById(`cc-${val}`).value) || 0;
-      });
       
       const sheetData = {
           date: date,
@@ -2401,18 +2362,8 @@ async function saveDailySheet(isAutoSave = false) {
           banked: parseFloat(document.getElementById('summary-banked').value) || 0,
           yesterdayPetti: parseFloat(document.getElementById('summary-yesterday-petti').value) || 0,
           handover: parseFloat(document.getElementById('summary-handover').value) || 0,
-          cashCounts: cashCounts,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
-
-      // --- FIX: Save Local Backup Immediately ---
-      // This ensures data is saved to your browser even if the database fails.
-      try {
-          const backupKey = 'inkspire_backup_' + date;
-          // We remove the serverTimestamp for local storage as it causes circular JSON errors
-          const localData = { ...sheetData, updatedAt: new Date().toISOString() };
-          localStorage.setItem(backupKey, JSON.stringify(localData));
-      } catch (e) { console.error("Local backup failed", e); }
 
       try {
           if(isAutoSave) statusLabel.textContent = "Saving...";
@@ -2426,17 +2377,14 @@ async function saveDailySheet(isAutoSave = false) {
               showToast("Daily Sheet saved successfully!");
           }
 
-          if (!isAutoSave) {
-              localStorage.removeItem('inkspire_unsaved_daily_sheet'); 
-          }
-          
+          localStorage.removeItem('inkspire_unsaved_daily_sheet'); 
           localStorage.setItem('inkspire_last_daily_sheet_date', date); 
       } catch (err) {
           console.error("Error saving daily sheet: ", err);
-          if(!isAutoSave) showToast("Saved to Local Backup only (Database Error).", true);
+          if(!isAutoSave) showToast("Error saving daily sheet.", true);
       }
   }
-
+  
   async function loadDailySheet() {
       // Cancel any pending auto-save from the previous screen state
       clearTimeout(autoSaveTimer);
@@ -2453,27 +2401,10 @@ async function saveDailySheet(isAutoSave = false) {
       const docId = date;
       
       try {
-          // --- FIX: Try Cloud First, Then Local Backup ---
-          let data = null;
-          let source = "Cloud";
-
-          try {
-              const doc = await db.collection('daily_sheets').doc(docId).get();
-              if (doc.exists) {
-                  data = doc.data();
-              }
-          } catch (e) { console.log("Cloud fetch failed, trying local..."); }
-
-          // If Cloud failed or was empty, check Local Backup
-          if (!data) {
-              const localBackup = localStorage.getItem('inkspire_backup_' + date);
-              if (localBackup) {
-                  data = JSON.parse(localBackup);
-                  source = "Local Backup";
-              }
-          }
-
-          if (data) {
+          const doc = await db.collection('daily_sheets').doc(docId).get();
+          if (doc.exists) {
+              const data = doc.data();
+              
               clearDailySheet(); // Clear sheet before loading new data
 
               document.getElementById('total-customers').value = data.totalCustomers || 0;
@@ -2504,15 +2435,8 @@ async function saveDailySheet(isAutoSave = false) {
               document.getElementById('summary-yesterday-petti').value = data.yesterdayPetti || 0;
               document.getElementById('summary-handover').value = data.handover || 0;
 
-              // Load Cash Counter
-              if (data.cashCounts) {
-                  [5000, 1000, 500, 100, 50, 20, 10, 5].forEach(val => {
-                      document.getElementById(`cc-${val}`).value = data.cashCounts[val] || '';
-                  });
-              }
-
               calculateDailySheet();
-              showToast(`Sheet loaded from ${source}.`);
+              showToast(`Sheet for ${date} loaded.`);
 
           } else {
               showToast(`No data found for ${date}. A new sheet is ready.`, true);
