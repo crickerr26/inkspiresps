@@ -2186,8 +2186,10 @@
           document.getElementById('daily-sheet-date').value = savedDate;
           loadDailySheet(); // Automatically load the data for the saved date
       } else {
+          // CHANGE: Default to Today and force a LOAD from Firebase.
+          // This ensures that if you added data on your Computer, your Phone sees it immediately.
           document.getElementById('daily-sheet-date').value = new Date().toISOString().split('T')[0];
-          clearDailySheet(); // Start with a clean sheet for today
+          loadDailySheet(); 
       }
   }
   
@@ -2417,6 +2419,7 @@
       }
       const docId = date;
 
+      // 1. Gather Sales Data
       const sales = [];
       document.querySelectorAll('#sales-table-body tr').forEach((row, index) => {
           const desc = row.querySelector('.sales-desc').value.trim();
@@ -2430,6 +2433,7 @@
           }
       });
 
+      // 2. Gather Expenses Data
       const expenses = [];
       document.querySelectorAll('#expenses-table-body tr').forEach(row => {
           const desc = row.querySelector('.expenses-desc').value.trim();
@@ -2438,12 +2442,21 @@
               expenses.push({ desc, amount });
           }
       });
+
+      // 3. Calculate Actual Cash Counted (NEW: Fixes the 0 value in Firebase)
+      let actualCashCounted = 0;
+      document.querySelectorAll('.cash-input').forEach(input => {
+          const val = parseFloat(input.dataset.val) || 0;
+          const count = parseFloat(input.value) || 0;
+          actualCashCounted += val * count;
+      });
       
       const sheetData = {
           date: date,
           totalCustomers: parseInt(document.getElementById('total-customers').value) || 0,
           sales: sales,
           expenses: expenses,
+          actualCashCounted: actualCashCounted, // Added this field
           banked: parseFloat(document.getElementById('summary-banked').value) || 0,
           yesterdayPetti: parseFloat(document.getElementById('summary-yesterday-petti').value) || 0,
           handover: parseFloat(document.getElementById('summary-handover').value) || 0,
