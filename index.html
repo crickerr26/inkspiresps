@@ -2405,6 +2405,15 @@ async function saveDailySheet(isAutoSave = false) {
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
 
+      // --- FIX: Save Local Backup Immediately ---
+      // This ensures data is saved to your browser even if the database fails.
+      try {
+          const backupKey = 'inkspire_backup_' + date;
+          // We remove the serverTimestamp for local storage as it causes circular JSON errors
+          const localData = { ...sheetData, updatedAt: new Date().toISOString() };
+          localStorage.setItem(backupKey, JSON.stringify(localData));
+      } catch (e) { console.error("Local backup failed", e); }
+
       try {
           if(isAutoSave) statusLabel.textContent = "Saving...";
           
@@ -2417,8 +2426,6 @@ async function saveDailySheet(isAutoSave = false) {
               showToast("Daily Sheet saved successfully!");
           }
 
-          // IMPORTANT FIX: Only clear the browser backup if the user MANUALLY clicked Save.
-          // If it's an auto-save, we keep the backup so data persists if the user refreshes immediately.
           if (!isAutoSave) {
               localStorage.removeItem('inkspire_unsaved_daily_sheet'); 
           }
@@ -2426,10 +2433,10 @@ async function saveDailySheet(isAutoSave = false) {
           localStorage.setItem('inkspire_last_daily_sheet_date', date); 
       } catch (err) {
           console.error("Error saving daily sheet: ", err);
-          if(!isAutoSave) showToast("Error saving daily sheet.", true);
+          if(!isAutoSave) showToast("Saved to Local Backup only (Database Error).", true);
       }
   }
-  
+
   async function loadDailySheet() {
       // Cancel any pending auto-save from the previous screen state
       clearTimeout(autoSaveTimer);
@@ -2446,10 +2453,27 @@ async function saveDailySheet(isAutoSave = false) {
       const docId = date;
       
       try {
-          const doc = await db.collection('daily_sheets').doc(docId).get();
-          if (doc.exists) {
-              const data = doc.data();
-              
+          // --- FIX: Try Cloud First, Then Local Backup ---
+          let data = null;
+          let source = "Cloud";
+
+          try {
+              const doc = await db.collection('daily_sheets').doc(docId).get();
+              if (doc.exists) {
+                  data = doc.data();
+              }
+          } catch (e) { console.log("Cloud fetch failed, trying local..."); }
+
+          // If Cloud failed or was empty, check Local Backup
+          if (!data) {
+              const localBackup = localStorage.getItem('inkspire_backup_' + date);
+              if (localBackup) {
+                  data = JSON.parse(localBackup);
+                  source = "Local Backup";
+              }
+          }
+
+          if (data) {
               clearDailySheet(); // Clear sheet before loading new data
 
               document.getElementById('total-customers').value = data.totalCustomers || 0;
@@ -2488,7 +2512,7 @@ async function saveDailySheet(isAutoSave = false) {
               }
 
               calculateDailySheet();
-              showToast(`Sheet for ${date} loaded.`);
+              showToast(`Sheet loaded from ${source}.`);
 
           } else {
               showToast(`No data found for ${date}. A new sheet is ready.`, true);
