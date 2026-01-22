@@ -242,6 +242,9 @@
             <img src="LOGO.png" alt="INKSPIRE Logo" class="w-full h-auto max-h-20 object-contain">
         </div>
         <nav class="sidebar space-y-3">
+          <button onclick="window.location.reload()" class="block text-left w-full py-2 px-3 rounded-lg text-red-600 font-bold hover:bg-red-50 hover:text-red-700 transition-colors duration-200 border border-red-100 mb-2">🔄 Refresh App</button>
+          <div class="border-t border-gray-200 my-2"></div>
+          
           <button onclick="showSection('dashboard')" id="dashboard-link" class="block text-left w-full py-2 px-3 rounded-lg text-gray-700 hover:bg-purple-100 hover:text-purple-700 transition-colors duration-200">📊 Dashboard</button>
           <button onclick="showSection('job-order')" class="block text-left w-full py-2 px-3 rounded-lg text-gray-700 hover:bg-purple-100 hover:text-purple-700 transition-colors duration-200">📝 New Job Order</button>
           <button onclick="showSection('calendar')" class="block text-left w-full py-2 px-3 rounded-lg text-gray-700 hover:bg-purple-100 hover:text-purple-700 transition-colors duration-200">📅 Calendar</button>
@@ -259,8 +262,13 @@
     </aside>
 
     <div class="flex-1 flex flex-col h-screen">
-        <header class="md:hidden flex items-center justify-center bg-white p-4 shadow-md z-10">
-            <h2 id="mobile-header-title" class="text-lg font-bold text-purple-700">Dashboard</h2>
+        <header class="md:hidden flex items-center justify-between bg-white p-4 shadow-md z-10">
+            <div class="w-6"></div> <h2 id="mobile-header-title" class="text-lg font-bold text-purple-700">Dashboard</h2>
+            <button onclick="window.location.reload()" class="text-gray-600 hover:text-purple-700 focus:outline-none p-1 rounded-md active:bg-gray-100">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+            </button>
         </header>
 
         <main class="flex-1 p-4 md:p-8 space-y-10 overflow-y-auto bg-gray-100">
@@ -821,6 +829,12 @@
                 <label for="daily-sheet-date" class="font-semibold text-gray-700">Date:</label>
                 <input type="date" id="daily-sheet-date" onchange="loadDailySheet()" class="daily-sheet-input w-auto">
             </div>
+            <button onclick="loadDailySheet()" class="flex items-center gap-1 bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-md text-xs font-bold transition-colors border border-blue-200" title="Fetch latest data from cloud">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh Data
+            </button>
             <span id="auto-save-status" class="text-xs font-semibold text-gray-500 ml-2"></span>
         </div>
 
@@ -989,7 +1003,13 @@
 </section>
 
 <section id="cash-counter" class="hidden section-transition bg-white p-6 rounded-xl shadow-lg">
-    <h2 class="text-2xl font-bold text-purple-700 mb-6">💵 Cash Counter & Reconciliation</h2>
+    <div class="flex flex-wrap justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-purple-700">💵 Cash Counter & Reconciliation</h2>
+        <div class="flex items-center gap-2 mt-2 sm:mt-0">
+             <label for="cash-counter-date" class="font-semibold text-gray-700">Date:</label>
+             <input type="date" id="cash-counter-date" onchange="syncCashCounterDate()" class="p-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500 shadow-sm">
+        </div>
+    </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div>
@@ -1232,6 +1252,13 @@
     const today = new Date().toISOString().split("T")[0];
     document.getElementById("order-date").value = today;
     document.getElementById("expense-date").value = today;
+
+    // Set Cash Counter Date to Sri Lanka Time Default
+    try {
+        const slDate = new Date().toLocaleString("en-CA", {timeZone: "Asia/Colombo", year: "numeric", month: "2-digit", day: "2-digit"});
+        const cashDateInput = document.getElementById("cash-counter-date");
+        if(cashDateInput) cashDateInput.value = slDate;
+    } catch(e) { console.error("Timezone error", e); }
     
     // Initialize calendar
     initCalendar();
@@ -2334,8 +2361,11 @@
       const cashInHand = (yesterdayPetti + totalCash) - (totalExpenses + banked + handover);
       
       document.getElementById('summary-net-sale').textContent = `Rs. ${formatWithCommas(netSale)}`;
-      document.getElementById('summary-cash-in-hand').textContent = `Rs. ${formatWithCommas(cashInHand)}`;
-      // Removed the duplicate "Petti Cash" update here
+      
+      // FIX: Store the raw numeric value in a data-attribute so Cash Counter can read it exactly
+      const cashInHandEl = document.getElementById('summary-cash-in-hand');
+      cashInHandEl.textContent = `Rs. ${formatWithCommas(cashInHand)}`;
+      cashInHandEl.setAttribute('data-value', cashInHand); // <--- Key Fix
       
       // Auto-save current state to localStorage
       const unsavedData = {
@@ -2343,6 +2373,11 @@
           banked, yesterdayPetti, handover
       };
       localStorage.setItem('inkspire_unsaved_daily_sheet', JSON.stringify(unsavedData));
+      
+      // Update Cash Counter if visible (Ensures the Expected Amount updates after fetch)
+      if (!document.getElementById('cash-counter').classList.contains('hidden')) {
+          calculateCashCounter();
+      }
 
       // --- AUTO SAVE LOGIC ---
       document.getElementById('auto-save-status').textContent = "Typing...";
@@ -2550,6 +2585,17 @@
 
   // --- CASH COUNTER LOGIC ---
   
+  function syncCashCounterDate() {
+      const ccDate = document.getElementById('cash-counter-date').value;
+      const dsDateInput = document.getElementById('daily-sheet-date');
+      
+      // If the Cash Counter date changes, update the Daily Sheet date and reload data
+      if (ccDate && dsDateInput.value !== ccDate) {
+          dsDateInput.value = ccDate;
+          loadDailySheet(); // This fetches data from Firebase and triggers calculateDailySheet
+      }
+  }
+
   // Attach Listeners to Cash Inputs
   document.querySelectorAll('.cash-input').forEach(input => {
       input.addEventListener('input', calculateCashCounter);
@@ -2559,10 +2605,21 @@
   const originalShowSection = showSection;
   showSection = function(id) {
       originalShowSection(id);
+      
       if (id === 'cash-counter') {
-          // Force a recalculation of Daily Sheet to get latest 'Cash In Hand'
-          calculateDailySheet(); 
-          calculateCashCounter();
+          // Logic: When entering Cash Counter, ensure we are looking at the selected date's data
+          const ccDateInput = document.getElementById('cash-counter-date');
+          const dsDateInput = document.getElementById('daily-sheet-date');
+          
+          if (ccDateInput.value && ccDateInput.value !== dsDateInput.value) {
+             // If dates mismatch, force Daily Sheet to switch to Cash Counter's date
+             dsDateInput.value = ccDateInput.value;
+             loadDailySheet(); // Load data for that date
+          } else {
+             // Dates match, just recalculate current view
+             calculateDailySheet(); 
+             calculateCashCounter();
+          }
       }
   };
 
@@ -2587,9 +2644,16 @@
       document.getElementById('cc-actual-display').textContent = `Rs. ${formatWithCommas(totalCounted)}`;
 
       // 3. Get Expected Amount from Daily Sheet
-      // We grab the text (e.g., "Rs. 1,200.00"), remove "Rs. " and commas, then parse
-      const expectedText = document.getElementById('summary-cash-in-hand').textContent;
-      const expectedVal = parseFloat(expectedText.replace(/[^0-9.-]+/g,"")) || 0;
+      const expectedEl = document.getElementById('summary-cash-in-hand');
+      
+      // FIX: Read the raw data-attribute first. If missing, fall back to text parsing.
+      let expectedVal = parseFloat(expectedEl.getAttribute('data-value'));
+      
+      if (isNaN(expectedVal)) {
+           // Fallback logic in case data-value isn't set yet (prevents the 0.66 error)
+           const expectedText = expectedEl.textContent;
+           expectedVal = parseFloat(expectedText.replace(/[^0-9.-]+/g,"")) || 0;
+      }
       
       document.getElementById('cc-expected-display').textContent = `Rs. ${formatWithCommas(expectedVal)}`;
 
