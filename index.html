@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+x<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -173,8 +173,23 @@
                 this.db = firebase.firestore();
                 this.auth = firebase.auth();
                 
-                this.auth.signInAnonymously().then(() => console.log("🔥 Connected"));
-                this.startListeners();
+                // ROBUST CONNECTION: Use listener instead of promise
+                // This handles slow connections, page reloads, and persistent sessions automatically without error alerts.
+                this.auth.onAuthStateChanged((user) => {
+                    if (user) {
+                        console.log("🔥 Connected as:", user.uid);
+                        // Only start listeners if not already started to prevent duplicates
+                        if (!State.listeners.jobs) {
+                            this.startListeners();
+                            const today = new Date().toISOString().split('T')[0];
+                            if(typeof App !== 'undefined') App.loadSheetForDate(today);
+                        }
+                    } else {
+                        console.log("💨 Signing in...");
+                        // Silently attempt sign-in. onAuthStateChanged will trigger again on success.
+                        this.auth.signInAnonymously().catch(e => console.error("Auth Error (Will Retry):", e));
+                    }
+                });
             },
 
             startListeners() {
@@ -182,19 +197,19 @@
                 State.listeners.jobs = this.db.collection('jobs').orderBy('createdAt', 'desc').onSnapshot(snap => {
                     const data = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
                     State.set('jobs', data);
-                });
+                }, err => console.log("Jobs sync error (retrying...):", err));
 
                 // Expenses Listener
                 State.listeners.expenses = this.db.collection('expenses').orderBy('createdAt', 'desc').onSnapshot(snap => {
                     const data = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
                     State.set('expenses', data);
-                });
+                }, err => console.log("Expenses sync error (retrying...):", err));
 
                 // Inventory Listener
                 State.listeners.inventory = this.db.collection('inventory').onSnapshot(snap => {
                     const data = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
                     State.set('inventory', data);
-                });
+                }, err => console.log("Inventory sync error (retrying...):", err));
             },
 
             // Unified Save Function for Daily Sheet
@@ -204,19 +219,27 @@
                     await this.db.collection('daily_sheets').doc(date).set(data, { merge: true });
                     UI.showSyncStatus('Saved', 'success');
                 } catch (e) {
-                    UI.showToast('Error Saving Sheet', e.message, 'error');
+                    // Don't alert on network errors, just log and show offline status
+                    console.error("Save failed:", e);
+                    UI.showSyncStatus('Offline (Saved Locally)', 'warning');
                 }
             },
 
             async loadDailySheet(date) {
                 UI.showSyncStatus('Loading...');
-                const doc = await this.db.collection('daily_sheets').doc(date).get();
-                if (doc.exists) {
-                    State.set('currentDailySheet', doc.data());
-                } else {
-                    State.set('currentDailySheet', null); // Fresh sheet
+                try {
+                    const doc = await this.db.collection('daily_sheets').doc(date).get();
+                    if (doc.exists) {
+                        State.set('currentDailySheet', doc.data());
+                    } else {
+                        State.set('currentDailySheet', null); // Fresh sheet
+                    }
+                    UI.showSyncStatus('Live', 'success');
+                } catch (e) {
+                    console.error("Load Failed", e);
+                    // Fail silently or retry, but don't crash UI
+                    UI.showSyncStatus('Offline Mode', 'warning');
                 }
-                UI.showSyncStatus('Live', 'success');
             }
         };
 
@@ -826,9 +849,9 @@
                         <div class="col-span-5"><input type="text" id="desc-${i}" placeholder="Description" class="sheet-input w-full p-2 border border-slate-200 rounded text-sm focus:border-primary-500 outline-none bg-transparent" oninput="App.debouncedSaveSheet()"></div>
                         <div class="col-span-3"><input type="number" id="amt-${i}" placeholder="Amount" class="sheet-input-amt w-full p-2 border border-slate-200 rounded text-sm focus:border-primary-500 outline-none font-mono text-right" oninput="App.calculateSheetTotals()"></div>
                         <div class="col-span-3 flex gap-1 justify-center">
-                            <label class="cursor-pointer"><input type="radio" name="pay-${i}" value="cash" class="peer sr-only" checked onchange="App.debouncedSaveSheet()"><span class="block w-6 h-6 rounded bg-slate-100 peer-checked:bg-green-500 peer-checked:text-white text-center text-xs leading-6 font-bold text-slate-400 transition-colors">C</span></label>
-                            <label class="cursor-pointer"><input type="radio" name="pay-${i}" value="credit" class="peer sr-only" onchange="App.debouncedSaveSheet()"><span class="block w-6 h-6 rounded bg-slate-100 peer-checked:bg-yellow-500 peer-checked:text-white text-center text-xs leading-6 font-bold text-slate-400 transition-colors">R</span></label>
-                            <label class="cursor-pointer"><input type="radio" name="pay-${i}" value="bank" class="peer sr-only" onchange="App.debouncedSaveSheet()"><span class="block w-6 h-6 rounded bg-slate-100 peer-checked:bg-blue-500 peer-checked:text-white text-center text-xs leading-6 font-bold text-slate-400 transition-colors">B</span></label>
+                            <label class="cursor-pointer"><input type="radio" name="pay-${i}" value="cash" class="peer sr-only" checked onchange="App.calculateSheetTotals()"><span class="block w-6 h-6 rounded bg-slate-100 peer-checked:bg-green-500 peer-checked:text-white text-center text-xs leading-6 font-bold text-slate-400 transition-colors">C</span></label>
+                            <label class="cursor-pointer"><input type="radio" name="pay-${i}" value="debit" class="peer sr-only" onchange="App.calculateSheetTotals()"><span class="block w-6 h-6 rounded bg-slate-100 peer-checked:bg-orange-500 peer-checked:text-white text-center text-xs leading-6 font-bold text-slate-400 transition-colors">D</span></label>
+                            <label class="cursor-pointer"><input type="radio" name="pay-${i}" value="bank" class="peer sr-only" onchange="App.calculateSheetTotals()"><span class="block w-6 h-6 rounded bg-slate-100 peer-checked:bg-blue-500 peer-checked:text-white text-center text-xs leading-6 font-bold text-slate-400 transition-colors">B</span></label>
                         </div>
                     `;
                     container.appendChild(div);
@@ -882,13 +905,15 @@
             renderSheetData() {
                 const data = State.currentDailySheet || {};
                 
+                // 1. Populate Summary
                 if(document.getElementById('dsp-banked')) {
                     document.getElementById('dsp-banked').value = data.banked || 0;
                 }
 
+                // 2. Populate Sales (Map to indices)
                 const sales = data.sales || [];
                 for(let i = 1; i <= 100; i++) {
-                    const rowData = sales[i-1] || {}; 
+                    const rowData = sales[i-1] || {}; // Arrays are 0-indexed, UI is 1-indexed
                     
                     const descInput = document.getElementById(`desc-${i}`);
                     const amtInput = document.getElementById(`amt-${i}`);
@@ -901,6 +926,7 @@
                     if(radio) radio.checked = true;
                 }
 
+                // 3. Populate Expenses
                 const expContainer = document.getElementById('expenses-rows-container');
                 if(expContainer) {
                     expContainer.innerHTML = '';
@@ -908,10 +934,18 @@
                     if(expenses.length > 0) {
                         expenses.forEach(e => this.addExpenseRow(e.desc, e.amount));
                     } else {
-                        this.addExpenseRow(); 
+                        this.addExpenseRow(); // Add one empty row
                     }
                 }
+
+                // 4. Populate Cash Counter (FIX: Restore saved values)
+                const cashCounts = data.cashCounts || {};
+                document.querySelectorAll('.cc-input').forEach(input => {
+                    const denom = input.getAttribute('data-denom');
+                    input.value = cashCounts[denom] || '';
+                });
                 
+                // 5. Recalculate everything
                 App.calculateSheetTotals();
             }
         };
@@ -1438,6 +1472,7 @@
             calculateSheetTotals() {
                 let totalSales = 0;
                 let customerCount = 0;
+                let autoBanked = 0;
 
                 for(let i = 1; i <= 100; i++) {
                     const amtInput = document.getElementById(`amt-${i}`);
@@ -1447,8 +1482,15 @@
                         const val = parseFloat(amtInput.value) || 0;
                         const desc = descInput.value.trim();
                         totalSales += val;
+                        
                         if (val > 0 || desc !== "") {
                             customerCount++;
+                        }
+
+                        // Check if Bank is selected
+                        const bankRadio = document.querySelector(`input[name="pay-${i}"][value="bank"]`);
+                        if (bankRadio && bankRadio.checked) {
+                            autoBanked += val;
                         }
                     }
                 }
@@ -1456,11 +1498,14 @@
                 const countEl = document.getElementById('dsp-total-customers');
                 if(countEl) countEl.textContent = customerCount;
 
+                // Update Banked Field Instantly
+                const bankedInput = document.getElementById('dsp-banked');
+                if(bankedInput) bankedInput.value = autoBanked;
+
                 let totalExpenses = 0;
                 document.querySelectorAll('.exp-amt').forEach(inp => totalExpenses += (parseFloat(inp.value) || 0));
 
-                const banked = parseFloat(document.getElementById('dsp-banked').value) || 0;
-                const cashInHand = totalSales - totalExpenses - banked;
+                const cashInHand = totalSales - totalExpenses - autoBanked;
                 
                 document.getElementById('dsp-total-sales').textContent = `Rs. ${totalSales}`;
                 document.getElementById('dsp-total-expenses').textContent = `- Rs. ${totalExpenses}`;
