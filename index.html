@@ -75,15 +75,21 @@
 </head>
 <body class="text-slate-800 h-screen flex overflow-hidden">
 
+    <div id="intro-splash" class="fixed inset-0 bg-white z-[9999] flex flex-col items-center justify-center transition-opacity duration-700 ease-out">
+        <div class="relative animate-[slideUp_0.8s_ease-out]">
+            <img src="LOGO.PNG" class="w-56 h-auto object-contain drop-shadow-2xl mb-8">
+        </div>
+        <div class="w-48 h-1 bg-slate-100 rounded-full overflow-hidden">
+            <div class="h-full bg-primary-600 animate-[progress_1.5s_ease-in-out_forwards]" style="width: 0%"></div>
+        </div>
+        <style>
+            @keyframes progress { 0% { width: 0%; } 100% { width: 100%; } }
+        </style>
+    </div>
+
     <aside class="w-72 bg-white border-r border-slate-200 flex flex-col z-20 transition-all duration-300 fixed md:relative transform -translate-x-full md:translate-x-0 h-full" id="sidebar">
-        <div class="p-8 pb-4 flex items-center gap-3">
-            <div class="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center text-white shadow-lg">
-                <i class="ph ph-printer text-xl"></i>
-            </div>
-            <div>
-                <h1 class="font-bold text-xl tracking-tight text-slate-900">INKSPIRE</h1>
-                <p class="text-xs text-slate-500 font-medium uppercase tracking-wider">Manager Pro</p>
-            </div>
+        <div class="p-6 flex items-center justify-center mb-2">
+            <img src="LOGO.PNG" alt="INKSPIRE" class="w-48 h-auto object-contain transition-transform duration-500 hover:scale-105 filter hover:drop-shadow-lg cursor-pointer animate-fade-in" onclick="location.reload()">
         </div>
 
         <div class="p-4 space-y-1 flex-1 overflow-y-auto" id="nav-container">
@@ -150,6 +156,7 @@
             expenses: [],
             inventory: [],
             currentDailySheet: null, // The sheet for the selected date
+            editingExpenseId: null, // NEW: Tracks which expense is being edited
             listeners: {},
             
             // Reactive Store
@@ -220,7 +227,7 @@
             routes: {
                 dashboard: { label: 'Dashboard', icon: 'ph-squares-four', render: () => Views.Dashboard() },
                 newJob: { label: 'New Job', icon: 'ph-plus-circle', render: () => Views.NewJob() },
-                calendar: { label: 'Calendar', icon: 'ph-calendar-check', render: () => Views.Calendar() }, // NEW
+                calendar: { label: 'Calendar', icon: 'ph-calendar-check', render: () => Views.Calendar() }, 
                 tasks: { label: 'Tasks & Orders', icon: 'ph-check-square', render: () => Views.Tasks() },
                 dailySheet: { label: 'Daily Sheet', icon: 'ph-file-text', render: () => Views.DailySheet() },
                 inventory: { label: 'Inventory', icon: 'ph-package', render: () => Views.Inventory() },
@@ -236,8 +243,9 @@
                 document.addEventListener('stateChanged', (e) => {
                     if (this.currentRoute === 'dashboard' && ['jobs', 'expenses'].includes(e.detail.key)) this.refreshView();
                     if (this.currentRoute === 'tasks' && e.detail.key === 'jobs') this.refreshView();
-                    if (this.currentRoute === 'calendar' && e.detail.key === 'jobs') App.renderCalendar(); // NEW: Refresh calendar on data change
+                    if (this.currentRoute === 'calendar' && e.detail.key === 'jobs') App.renderCalendar();
                     if (this.currentRoute === 'inventory' && e.detail.key === 'inventory') this.refreshView();
+                    if (this.currentRoute === 'expenses' && e.detail.key === 'expenses') this.refreshView();
                     if (this.currentRoute === 'dailySheet' && e.detail.key === 'currentDailySheet') Views.renderSheetData();
                 });
             },
@@ -267,7 +275,7 @@
                 
                 // Post-render hooks
                 if (routeKey === 'dashboard') Views.initCharts();
-                if (routeKey === 'calendar') App.renderCalendar(); // NEW: Init Calendar
+                if (routeKey === 'calendar') App.renderCalendar(); 
                 if (routeKey === 'dailySheet') Views.initDailySheetListeners();
                 
                 // Mobile: Close sidebar
@@ -656,6 +664,139 @@
                     </div>
                 `;
             },
+
+            Expenses() {
+                const today = new Date().toISOString().split('T')[0];
+                return `
+                    <div class="space-y-6 animate-slide-up">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                            <h2 class="text-2xl font-bold text-primary-700 mb-6 flex items-center justify-between">
+                                <span><i class="ph ph-receipt"></i> Shop Expenses</span>
+                            </h2>
+                            
+                            <form id="expense-form" onsubmit="App.submitExpense(event)" class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                                <div class="md:col-span-1">
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Category</label>
+                                    <select name="category" class="w-full p-2 bg-white border border-slate-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 text-sm">
+                                        <option value="Paper Stock">📄 Paper Stock</option>
+                                        <option value="Ink & Toner">💧 Ink & Toner</option>
+                                        <option value="Maintenance">🛠️ Maintenance</option>
+                                        <option value="Utilities">💡 Utilities</option>
+                                        <option value="Rent">🏠 Rent</option>
+                                        <option value="Salaries">👥 Salaries</option>
+                                        <option value="Transport">🚚 Transport</option>
+                                        <option value="Office Supplies">🖇️ Office Supplies</option>
+                                        <option value="Other">❓ Other</option>
+                                    </select>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Description</label>
+                                    <input type="text" name="title" required placeholder="e.g. 500 GSM Glossy Paper (500 sheets)" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 text-sm"/>
+                                </div>
+                                <div class="md:col-span-1">
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Amount (Rs)</label>
+                                    <input type="number" name="amount" required placeholder="0.00" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 text-sm font-semibold"/>
+                                </div>
+                                <div class="md:col-span-1">
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Payment Method</label>
+                                    <select name="method" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 text-sm">
+                                        <option value="Cash">💵 Cash</option>
+                                        <option value="Bank Transfer">🏦 Bank Transfer</option>
+                                        <option value="Cheque">✍️ Cheque</option>
+                                        <option value="Card">💳 Card</option>
+                                    </select>
+                                </div>
+                                <div class="md:col-span-1">
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Date</label>
+                                    <input type="date" name="date" value="${today}" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 text-sm"/>
+                                </div>
+                                <div class="md:col-span-2 flex items-end">
+                                    <button type="submit" class="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Add Shop Expense</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm text-left">
+                                    <thead class="bg-slate-50 text-slate-500 uppercase font-bold text-xs">
+                                        <tr>
+                                            <th class="p-4 w-24">Date</th>
+                                            <th class="p-4 w-32">Category</th>
+                                            <th class="p-4">Description</th>
+                                            <th class="p-4 w-32">Method</th>
+                                            <th class="p-4 text-right w-28">Amount</th>
+                                            <th class="p-4 text-center w-32">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="expense-body" class="divide-y divide-slate-100">
+                                        ${State.expenses.map(exp => {
+                                            if (State.editingExpenseId === exp.id) {
+                                                // EDIT MODE ROW
+                                                return `
+                                                    <tr class="bg-blue-50/50 transition-colors">
+                                                        <td class="p-2"><input type="date" id="edit-date-${exp.id}" value="${exp.date}" class="w-full p-1 border border-blue-200 rounded text-xs"></td>
+                                                        <td class="p-2">
+                                                            <select id="edit-cat-${exp.id}" class="w-full p-1 border border-blue-200 rounded text-xs">
+                                                                <option value="Paper Stock" ${exp.category === 'Paper Stock' ? 'selected' : ''}>Paper Stock</option>
+                                                                <option value="Ink & Toner" ${exp.category === 'Ink & Toner' ? 'selected' : ''}>Ink & Toner</option>
+                                                                <option value="Maintenance" ${exp.category === 'Maintenance' ? 'selected' : ''}>Maintenance</option>
+                                                                <option value="Utilities" ${exp.category === 'Utilities' ? 'selected' : ''}>Utilities</option>
+                                                                <option value="Rent" ${exp.category === 'Rent' ? 'selected' : ''}>Rent</option>
+                                                                <option value="Salaries" ${exp.category === 'Salaries' ? 'selected' : ''}>Salaries</option>
+                                                                <option value="Transport" ${exp.category === 'Transport' ? 'selected' : ''}>Transport</option>
+                                                                <option value="Office Supplies" ${exp.category === 'Office Supplies' ? 'selected' : ''}>Office Supplies</option>
+                                                                <option value="Other" ${exp.category === 'Other' ? 'selected' : ''}>Other</option>
+                                                            </select>
+                                                        </td>
+                                                        <td class="p-2"><input type="text" id="edit-title-${exp.id}" value="${exp.title}" class="w-full p-1 border border-blue-200 rounded text-xs"></td>
+                                                        <td class="p-2">
+                                                            <select id="edit-method-${exp.id}" class="w-full p-1 border border-blue-200 rounded text-xs">
+                                                                <option value="Cash" ${exp.method === 'Cash' ? 'selected' : ''}>Cash</option>
+                                                                <option value="Bank Transfer" ${exp.method === 'Bank Transfer' ? 'selected' : ''}>Bank Transfer</option>
+                                                                <option value="Cheque" ${exp.method === 'Cheque' ? 'selected' : ''}>Cheque</option>
+                                                                <option value="Card" ${exp.method === 'Card' ? 'selected' : ''}>Card</option>
+                                                            </select>
+                                                        </td>
+                                                        <td class="p-2"><input type="number" id="edit-amount-${exp.id}" value="${exp.amount}" class="w-full p-1 border border-blue-200 rounded text-xs text-right font-mono"></td>
+                                                        <td class="p-2 text-center flex items-center justify-center gap-2">
+                                                            <button onclick="App.updateExpense('${exp.id}')" class="bg-green-500 text-white p-1 rounded hover:bg-green-600 shadow-sm" title="Save"><i class="ph ph-check text-lg"></i></button>
+                                                            <button onclick="App.cancelEdit()" class="bg-slate-400 text-white p-1 rounded hover:bg-slate-500 shadow-sm" title="Cancel"><i class="ph ph-x text-lg"></i></button>
+                                                        </td>
+                                                    </tr>
+                                                `;
+                                            } else {
+                                                // READ ONLY ROW
+                                                return `
+                                                    <tr class="hover:bg-slate-50 transition-colors group">
+                                                        <td class="p-4 text-slate-600">${exp.date || 'N/A'}</td>
+                                                        <td class="p-4"><span class="px-2 py-1 bg-primary-50 text-primary-700 rounded-md text-xs font-bold">${exp.category}</span></td>
+                                                        <td class="p-4 font-medium text-slate-800">${exp.title}</td>
+                                                        <td class="p-4 text-slate-500">${exp.method}</td>
+                                                        <td class="p-4 text-right font-bold text-red-600 font-mono">Rs. ${Utils.formatMoney(exp.amount)}</td>
+                                                        <td class="p-4 text-center flex justify-center gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <button onclick="App.enableEdit('${exp.id}')" class="text-blue-400 hover:text-blue-600 transition-colors p-1 rounded hover:bg-blue-50" title="Edit">
+                                                                <i class="ph ph-pencil-simple text-lg"></i>
+                                                            </button>
+                                                            <button onclick="App.deleteExpense('${exp.id}')" class="text-slate-400 hover:text-red-600 transition-colors p-1 rounded hover:bg-red-50" title="Delete">
+                                                                <i class="ph ph-trash text-lg"></i>
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                `;
+                                            }
+                                        }).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            Reports() {
+                return `<div class="p-10 text-center text-slate-400">Reports Module Under Construction</div>`;
+            },
             
             // --- Helper Methods for Views ---
             initCharts() {
@@ -737,19 +878,16 @@
                 container.appendChild(div);
             },
             
-            // CRITICAL: This fills the 100 rows with data when date changes
             renderSheetData() {
                 const data = State.currentDailySheet || {};
                 
-                // 1. Populate Summary
                 if(document.getElementById('dsp-banked')) {
                     document.getElementById('dsp-banked').value = data.banked || 0;
                 }
 
-                // 2. Populate Sales (Map to indices)
                 const sales = data.sales || [];
                 for(let i = 1; i <= 100; i++) {
-                    const rowData = sales[i-1] || {}; // Arrays are 0-indexed, UI is 1-indexed
+                    const rowData = sales[i-1] || {}; 
                     
                     const descInput = document.getElementById(`desc-${i}`);
                     const amtInput = document.getElementById(`amt-${i}`);
@@ -762,7 +900,6 @@
                     if(radio) radio.checked = true;
                 }
 
-                // 3. Populate Expenses
                 const expContainer = document.getElementById('expenses-rows-container');
                 if(expContainer) {
                     expContainer.innerHTML = '';
@@ -770,11 +907,10 @@
                     if(expenses.length > 0) {
                         expenses.forEach(e => this.addExpenseRow(e.desc, e.amount));
                     } else {
-                        this.addExpenseRow(); // Add one empty row
+                        this.addExpenseRow(); 
                     }
                 }
                 
-                // 4. Recalculate everything
                 App.calculateSheetTotals();
             }
         };
@@ -784,21 +920,17 @@
             init() {
                 DB.init();
                 UI.init();
-                // Set Date for Daily Sheet
                 setTimeout(() => this.loadSheetForDate(new Date().toISOString().split('T')[0]), 500);
             },
             
             refresh() { location.reload(); },
 
-            // --- SMART CALENDAR LOGIC ---
             calendarInstance: null,
             renderCalendar() {
                 const el = document.getElementById('calendar-wrapper');
                 if (!el) return;
 
-                // 1. Define Holidays (Sri Lanka Poya, Public & Islamic)
                 const holidays = [
-                    // 2025
                     { title: "Duruthu Poya", start: "2025-01-13", display: "background", color: "#7c3aed" },
                     { title: "Thai Pongal", start: "2025-01-14", color: "#db2777", isHoliday: true },
                     { title: "Independence Day", start: "2025-02-04", color: "#ea580c", isHoliday: true },
@@ -823,8 +955,6 @@
                     { title: "Ill Poya", start: "2025-11-05", display: "background", color: "#7c3aed" },
                     { title: "Unduvap Poya", start: "2025-12-04", display: "background", color: "#7c3aed" },
                     { title: "Christmas", start: "2025-12-25", color: "#16a34a", isHoliday: true },
-
-                    // 2026
                     { title: "Duruthu Poya", start: "2026-01-03", display: "background", color: "#7c3aed" },
                     { title: "Thai Pongal", start: "2026-01-15", color: "#db2777", isHoliday: true },
                     { title: "Navam Poya", start: "2026-02-01", display: "background", color: "#7c3aed" },
@@ -851,26 +981,23 @@
                     { title: "Christmas", start: "2026-12-25", color: "#16a34a", isHoliday: true }
                 ];
 
-                // 2. Map Job Events
                 const jobEvents = State.jobs.map(job => {
                     const deadline = new Date(job.deadline);
                     const today = new Date();
                     const diffTime = deadline - today;
                     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-                    let color = '#3b82f6'; // Default Blue
-                    let classNames = [];
+                    let color = '#3b82f6'; 
 
                     if (job.status === 'completed') {
-                        color = '#10b981'; // Green
+                        color = '#10b981'; 
                     } else if (job.status === 'cancelled') {
-                        color = '#94a3b8'; // Gray
+                        color = '#94a3b8'; 
                     } else {
                         if (diffDays <= 2) {
-                            color = '#ef4444'; // Red (Urgent)
-                            classNames.push('animate-pulse');
+                            color = '#ef4444'; 
                         } else if (diffDays <= 5) {
-                            color = '#fb923c'; // Orange (Warning)
+                            color = '#fb923c'; 
                         }
                     }
 
@@ -879,12 +1006,10 @@
                         start: job.deadline,
                         backgroundColor: color,
                         borderColor: color,
-                        classNames: classNames,
                         extendedProps: { ...job, isJob: true }
                     };
                 });
 
-                // 3. Combine Events
                 const allEvents = [...holidays, ...jobEvents];
 
                 if (this.calendarInstance) {
@@ -900,11 +1025,10 @@
                     },
                     height: '100%',
                     events: allEvents,
-                    navLinks: true, // Click day/week names to navigate views
-                    dayMaxEvents: true, // Allow "more" link when too many events
-                    nowIndicator: true, // Show current time in week/day view
+                    navLinks: true,
+                    dayMaxEvents: true,
+                    nowIndicator: true,
                     eventDidMount: function(info) {
-                        // Style Background Events (Poya Days)
                         if (info.event.display === 'background') {
                             info.el.style.opacity = '0.15';
                             info.el.innerText = info.event.title; 
@@ -917,7 +1041,6 @@
                         }
                     },
                     eventClick: (info) => {
-                        // Ignore clicks on Holidays
                         if (info.event.extendedProps.isHoliday || info.event.display === 'background') return;
 
                         const j = info.event.extendedProps;
@@ -958,16 +1081,12 @@
                 e.preventDefault();
                 const form = e.target;
                 const formData = new FormData(form);
-                
-                // Extract Checkboxes and combine them
                 const selectedOptions = Array.from(form.querySelectorAll('input[name="job_details_check"]:checked')).map(cb => cb.value);
                 const otherDetails = formData.get('job_details_other');
-                
-                // Combine into a single string
                 const finalDetails = [...selectedOptions, otherDetails].filter(Boolean).join(', ');
 
                 if (!finalDetails) {
-                    UI.showToast('Validation Error', 'Please select at least one job requirement or add details.', 'error');
+                    UI.showToast('Validation Error', 'Please select at least one job requirement.', 'error');
                     return;
                 }
 
@@ -1024,17 +1143,77 @@
                 if(confirm('Remove item?')) DB.db.collection('inventory').doc(id).delete();
             },
 
+            // New Expense Logic
+            submitExpense(e) {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const expenseData = {
+                    category: formData.get('category'),
+                    title: formData.get('title'),
+                    amount: parseFloat(formData.get('amount')),
+                    method: formData.get('method'),
+                    date: formData.get('date'),
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                DB.db.collection('expenses').add(expenseData).then(() => {
+                    UI.showToast('Expense Added', 'Shop expense recorded successfully.');
+                    e.target.reset();
+                }).catch(err => UI.showToast('Error', err.message, 'error'));
+            },
+
+            // --- Edit Features ---
+            enableEdit(id) {
+                State.editingExpenseId = id;
+                UI.refreshView();
+            },
+
+            cancelEdit() {
+                State.editingExpenseId = null;
+                UI.refreshView();
+            },
+
+            async updateExpense(id) {
+                try {
+                    const category = document.getElementById(`edit-cat-${id}`).value;
+                    const title = document.getElementById(`edit-title-${id}`).value;
+                    const method = document.getElementById(`edit-method-${id}`).value;
+                    const amount = parseFloat(document.getElementById(`edit-amount-${id}`).value);
+                    const date = document.getElementById(`edit-date-${id}`).value;
+
+                    if (!title || isNaN(amount)) {
+                        UI.showToast('Validation Error', 'Please check input fields.', 'error');
+                        return;
+                    }
+
+                    await DB.db.collection('expenses').doc(id).update({
+                        category, title, method, amount, date
+                    });
+
+                    State.editingExpenseId = null;
+                    UI.showToast('Updated', 'Expense updated successfully.');
+                    // UI Refresh happens automatically via Snapshot listener
+                } catch (error) {
+                    UI.showToast('Error', error.message, 'error');
+                }
+            },
+            // ---------------------
+
+            deleteExpense(id) {
+                if(confirm('Delete this expense record?')) {
+                    DB.db.collection('expenses').doc(id).delete()
+                        .then(() => UI.showToast('Deleted', 'Expense record removed.'));
+                }
+            },
+
             // Daily Sheet Logic
             loadSheetForDate(date) {
                 DB.loadDailySheet(date);
             },
 
             calculateSheetTotals() {
-                // 1. Calculate Sales & Count Customers
                 let totalSales = 0;
                 let customerCount = 0;
 
-                // Loop 1-100 to check all fixed rows
                 for(let i = 1; i <= 100; i++) {
                     const amtInput = document.getElementById(`amt-${i}`);
                     const descInput = document.getElementById(`desc-${i}`);
@@ -1043,34 +1222,26 @@
                         const val = parseFloat(amtInput.value) || 0;
                         const desc = descInput.value.trim();
                         totalSales += val;
-                        
-                        // Count if row has data
                         if (val > 0 || desc !== "") {
                             customerCount++;
                         }
                     }
                 }
                 
-                // Update Customer Count UI
                 const countEl = document.getElementById('dsp-total-customers');
                 if(countEl) countEl.textContent = customerCount;
 
-                // 2. Calculate Expenses
                 let totalExpenses = 0;
                 document.querySelectorAll('.exp-amt').forEach(inp => totalExpenses += (parseFloat(inp.value) || 0));
 
-                // 3. Summary
                 const banked = parseFloat(document.getElementById('dsp-banked').value) || 0;
                 const cashInHand = totalSales - totalExpenses - banked;
                 
-                // Update UI
                 document.getElementById('dsp-total-sales').textContent = `Rs. ${totalSales}`;
                 document.getElementById('dsp-total-expenses').textContent = `- Rs. ${totalExpenses}`;
                 document.getElementById('dsp-cash-hand').textContent = `Rs. ${cashInHand}`;
                 
-                // Trigger Cash Counter Calc to update variance
                 this.calculateCashCounter(cashInHand);
-                
                 this.debouncedSaveSheet();
             },
 
@@ -1087,7 +1258,6 @@
                 
                 document.getElementById('cc-total').textContent = `Rs. ${total}`;
                 
-                // Variance
                 if (expectedTotal === null) {
                    const cashText = document.getElementById('dsp-cash-hand').textContent;
                    expectedTotal = parseFloat(cashText.replace(/[^0-9.-]+/g,"")) || 0;
@@ -1105,7 +1275,8 @@
 
             saveTimer: null,
             debouncedSaveSheet() {
-                document.getElementById('auto-save-indicator').textContent = "Typing...";
+                const indicator = document.getElementById('auto-save-indicator');
+                if(indicator) indicator.textContent = "Typing...";
                 clearTimeout(this.saveTimer);
                 this.saveTimer = setTimeout(() => {
                     this.gatherAndSaveSheet();
@@ -1113,19 +1284,15 @@
             },
 
             gatherAndSaveSheet() {
-                const date = document.getElementById('sheet-date').value;
+                const dateEl = document.getElementById('sheet-date');
+                if(!dateEl) return;
+                const date = dateEl.value;
                 const sales = [];
                 
-                // Gather exactly 100 rows to maintain index positions
                 for(let i = 1; i <= 100; i++) {
                     const desc = document.getElementById(`desc-${i}`).value;
-                    const amount = document.getElementById(`amt-${i}`).value; // Keep as string to preserve empty state
+                    const amount = document.getElementById(`amt-${i}`).value; 
                     const checked = document.querySelector(`input[name="pay-${i}"]:checked`);
-                    
-                    // We save even empty rows as placeholders to ensure row 5 stays at index 4
-                    // Or we save a sparse array. Better to save objects with values.
-                    // If we want accurate reproduction on reload, we just save the list.
-                    // Optimization: We can just map 1-100.
                     
                     sales.push({ 
                         desc: desc, 
@@ -1134,13 +1301,16 @@
                     });
                 }
 
-                // Gather Expenses
                 const expenses = [];
                 const expRows = document.getElementById('expenses-rows-container').children;
                 for(let row of expRows) {
-                    const desc = row.querySelector('.exp-desc').value;
-                    const amount = parseFloat(row.querySelector('.exp-amt').value) || 0;
-                    if(desc || amount) expenses.push({desc, amount});
+                    const descInput = row.querySelector('.exp-desc');
+                    const amtInput = row.querySelector('.exp-amt');
+                    if(descInput && amtInput) {
+                        const desc = descInput.value;
+                        const amount = parseFloat(amtInput.value) || 0;
+                        if(desc || amount) expenses.push({desc, amount});
+                    }
                 }
 
                 const cashCounts = {};
@@ -1149,7 +1319,7 @@
                 });
 
                 const data = {
-                    sales, // Array of 100 items
+                    sales, 
                     expenses,
                     banked: parseFloat(document.getElementById('dsp-banked').value) || 0,
                     cashCounts,
@@ -1158,7 +1328,8 @@
                 };
 
                 DB.saveDailySheet(date, data);
-                document.getElementById('auto-save-indicator').textContent = "Saved";
+                const indicator = document.getElementById('auto-save-indicator');
+                if(indicator) indicator.textContent = "Saved";
             }
         };
 
@@ -1180,6 +1351,17 @@
 
         // --- BOOTSTRAP ---
         App.init();
+
+        // Intro Animation Logic
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const splash = document.getElementById('intro-splash');
+                if(splash) {
+                    splash.classList.add('opacity-0', 'pointer-events-none');
+                    setTimeout(() => splash.remove(), 800);
+                }
+            }, 1800); // Logo stays visible for 1.8 seconds
+        });
 
     </script>
 </body>
