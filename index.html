@@ -571,19 +571,22 @@
                                     <label class="font-bold text-sm">Date:</label>
                                     <input type="date" id="sheet-date" value="${today}" onchange="App.loadSheetForDate(this.value)" class="bg-slate-50 border border-slate-200 rounded-lg p-1 text-sm">
                                 </div>
-                                <div class="text-xs font-bold bg-primary-50 text-primary-700 px-3 py-1 rounded-full animate-pulse" id="auto-save-indicator">Ready</div>
+                                <div class="flex items-center gap-4">
+                                    <div class="text-xs font-bold text-slate-500">Total Customers: <span id="dsp-total-customers" class="text-slate-800 text-sm">0</span></div>
+                                    <div class="text-xs font-bold bg-primary-50 text-primary-700 px-3 py-1 rounded-full animate-pulse" id="auto-save-indicator">Ready</div>
+                                </div>
                             </div>
 
                             <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                                <div class="bg-slate-50 p-3 border-b border-slate-100 font-bold text-xs uppercase text-slate-500 flex justify-between">
-                                    <span>Sales Line Items</span>
-                                    <span>Auto-Calculates</span>
-                                </div>
-                                <div id="sales-rows-container" class="p-2 space-y-2">
+                                <div class="bg-slate-50 p-2 border-b border-slate-100 flex justify-between items-center">
+                                    <div class="flex bg-slate-200 p-1 rounded-lg">
+                                        <button onclick="Views.switchSheetPage(1)" id="btn-page-1" class="px-3 py-1 text-xs font-bold rounded-md bg-white text-primary-700 shadow-sm transition-all">Page 1 (1-50)</button>
+                                        <button onclick="Views.switchSheetPage(2)" id="btn-page-2" class="px-3 py-1 text-xs font-bold rounded-md text-slate-500 hover:bg-white/50 transition-all">Page 2 (51-100)</button>
                                     </div>
-                                <div class="p-2 bg-slate-50 border-t border-slate-100 text-center">
-                                    <button onclick="Views.addSaleRow()" class="text-xs font-bold text-primary-600 hover:text-primary-800">+ Add Row</button>
+                                    <span class="text-xs font-bold uppercase text-slate-400">Sales Line Items</span>
                                 </div>
+                                <div id="sales-rows-container" class="p-2 space-y-1">
+                                    </div>
                             </div>
 
                             <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
@@ -659,19 +662,35 @@
                 const ctx = document.getElementById('dashboardChart');
                 if(!ctx) return;
                 
-                // Process Data (Last 6 months simplified)
                 const data = { labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'], datasets: [{ label: 'Revenue', data: [12000, 19000, 3000, 5000, 2000, 30000], borderColor: '#7c3aed', tension: 0.4, fill: true, backgroundColor: 'rgba(124, 58, 237, 0.1)' }] };
-                
                 new Chart(ctx, { type: 'line', data: data, options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } } } });
             },
 
             initDailySheetListeners() {
-                // Populate Sales Rows (Start with 10 empty if new)
+                // Generate 100 Rows Upfront
                 const container = document.getElementById('sales-rows-container');
-                const data = State.currentDailySheet?.sales || Array(10).fill({});
-                
                 container.innerHTML = '';
-                data.forEach(item => this.createSaleRow(item));
+                
+                for(let i = 1; i <= 100; i++) {
+                    const pageClass = i <= 50 ? 'sheet-page-1' : 'sheet-page-2';
+                    const displayStyle = i <= 50 ? '' : 'display:none';
+                    
+                    const div = document.createElement('div');
+                    div.className = `grid grid-cols-12 gap-2 items-center group ${pageClass}`;
+                    div.style.cssText = displayStyle;
+                    
+                    div.innerHTML = `
+                        <div class="col-span-1 text-center text-xs font-bold text-slate-300 select-none">${i}</div>
+                        <div class="col-span-5"><input type="text" id="desc-${i}" placeholder="Description" class="sheet-input w-full p-2 border border-slate-200 rounded text-sm focus:border-primary-500 outline-none bg-transparent" oninput="App.debouncedSaveSheet()"></div>
+                        <div class="col-span-3"><input type="number" id="amt-${i}" placeholder="Amount" class="sheet-input-amt w-full p-2 border border-slate-200 rounded text-sm focus:border-primary-500 outline-none font-mono text-right" oninput="App.calculateSheetTotals()"></div>
+                        <div class="col-span-3 flex gap-1 justify-center">
+                            <label class="cursor-pointer"><input type="radio" name="pay-${i}" value="cash" class="peer sr-only" checked onchange="App.debouncedSaveSheet()"><span class="block w-6 h-6 rounded bg-slate-100 peer-checked:bg-green-500 peer-checked:text-white text-center text-xs leading-6 font-bold text-slate-400 transition-colors">C</span></label>
+                            <label class="cursor-pointer"><input type="radio" name="pay-${i}" value="credit" class="peer sr-only" onchange="App.debouncedSaveSheet()"><span class="block w-6 h-6 rounded bg-slate-100 peer-checked:bg-yellow-500 peer-checked:text-white text-center text-xs leading-6 font-bold text-slate-400 transition-colors">R</span></label>
+                            <label class="cursor-pointer"><input type="radio" name="pay-${i}" value="bank" class="peer sr-only" onchange="App.debouncedSaveSheet()"><span class="block w-6 h-6 rounded bg-slate-100 peer-checked:bg-blue-500 peer-checked:text-white text-center text-xs leading-6 font-bold text-slate-400 transition-colors">B</span></label>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                }
 
                 // Populate Cash Counter
                 const ccContainer = document.getElementById('cash-counter-rows');
@@ -686,39 +705,77 @@
                     </div>
                 `).join('');
 
-                // Initial Load
-                if(State.currentDailySheet) {
-                    document.getElementById('dsp-banked').value = State.currentDailySheet.banked || 0;
-                }
-                
-                App.calculateSheetTotals(); // Calc initial totals
+                // Initial Data Population
+                this.renderSheetData();
             },
 
-            createSaleRow(data = {}) {
-                const container = document.getElementById('sales-rows-container');
+            switchSheetPage(pageNum) {
+                document.querySelectorAll('.sheet-page-1').forEach(el => el.style.display = pageNum === 1 ? 'grid' : 'none');
+                document.querySelectorAll('.sheet-page-2').forEach(el => el.style.display = pageNum === 2 ? 'grid' : 'none');
+                
+                const btn1 = document.getElementById('btn-page-1');
+                const btn2 = document.getElementById('btn-page-2');
+                
+                if(pageNum === 1) {
+                    btn1.className = "px-3 py-1 text-xs font-bold rounded-md bg-white text-primary-700 shadow-sm transition-all";
+                    btn2.className = "px-3 py-1 text-xs font-bold rounded-md text-slate-500 hover:bg-white/50 transition-all";
+                } else {
+                    btn1.className = "px-3 py-1 text-xs font-bold rounded-md text-slate-500 hover:bg-white/50 transition-all";
+                    btn2.className = "px-3 py-1 text-xs font-bold rounded-md bg-white text-primary-700 shadow-sm transition-all";
+                }
+            },
+
+            addExpenseRow(desc='', amount='') { 
+                const container = document.getElementById('expenses-rows-container');
                 const div = document.createElement('div');
-                div.className = "grid grid-cols-12 gap-2 items-center animate-fade-in group";
+                div.className = "grid grid-cols-12 gap-2 items-center animate-fade-in";
                 div.innerHTML = `
-                    <div class="col-span-6"><input type="text" placeholder="Description" value="${data.desc || ''}" class="sheet-input w-full p-2 border border-slate-200 rounded text-sm focus:border-primary-500 outline-none" oninput="App.debouncedSaveSheet()"></div>
-                    <div class="col-span-3"><input type="number" placeholder="Amount" value="${data.amount || ''}" class="sheet-input-amt w-full p-2 border border-slate-200 rounded text-sm focus:border-primary-500 outline-none font-mono" oninput="App.calculateSheetTotals()"></div>
-                    <div class="col-span-3 flex gap-1 justify-center">
-                        <label class="cursor-pointer"><input type="radio" name="pay-${Math.random()}" value="cash" ${data.type === 'cash' ? 'checked' : ''} class="peer sr-only" onchange="App.debouncedSaveSheet()"><span class="block w-6 h-6 rounded bg-slate-100 peer-checked:bg-green-500 peer-checked:text-white text-center text-xs leading-6 font-bold text-slate-400">C</span></label>
-                        <label class="cursor-pointer"><input type="radio" name="pay-${Math.random()}" value="credit" ${data.type === 'credit' ? 'checked' : ''} class="peer sr-only" onchange="App.debouncedSaveSheet()"><span class="block w-6 h-6 rounded bg-slate-100 peer-checked:bg-yellow-500 peer-checked:text-white text-center text-xs leading-6 font-bold text-slate-400">R</span></label>
-                    </div>
+                    <div class="col-span-8"><input type="text" placeholder="Expense Description" value="${desc}" class="exp-desc w-full p-2 border border-slate-200 rounded text-sm focus:border-red-500 outline-none" oninput="App.debouncedSaveSheet()"></div>
+                    <div class="col-span-3"><input type="number" placeholder="Amount" value="${amount}" class="exp-amt w-full p-2 border border-slate-200 rounded text-sm focus:border-red-500 outline-none font-mono text-right" oninput="App.calculateSheetTotals()"></div>
+                    <div class="col-span-1 text-center"><button onclick="this.parentElement.parentElement.remove(); App.calculateSheetTotals()" class="text-red-400 hover:text-red-600"><i class="ph ph-trash"></i></button></div>
                 `;
                 container.appendChild(div);
             },
             
-            addSaleRow() { this.createSaleRow(); },
-            
+            // CRITICAL: This fills the 100 rows with data when date changes
             renderSheetData() {
-                // Triggered when Firebase updates from elsewhere
-                // To avoid interrupting typing, we check if the update is newer than local last edit
-                // Simplified: Just update totals for now
-                if(State.currentDailySheet) {
-                    document.getElementById('dsp-banked').value = State.currentDailySheet.banked || 0;
-                    // Advanced: Diffing inputs would go here. For now, rely on local state priority.
+                const data = State.currentDailySheet || {};
+                
+                // 1. Populate Summary
+                if(document.getElementById('dsp-banked')) {
+                    document.getElementById('dsp-banked').value = data.banked || 0;
                 }
+
+                // 2. Populate Sales (Map to indices)
+                const sales = data.sales || [];
+                for(let i = 1; i <= 100; i++) {
+                    const rowData = sales[i-1] || {}; // Arrays are 0-indexed, UI is 1-indexed
+                    
+                    const descInput = document.getElementById(`desc-${i}`);
+                    const amtInput = document.getElementById(`amt-${i}`);
+                    
+                    if(descInput) descInput.value = rowData.desc || '';
+                    if(amtInput) amtInput.value = rowData.amount || '';
+                    
+                    const payType = rowData.type || 'cash';
+                    const radio = document.querySelector(`input[name="pay-${i}"][value="${payType}"]`);
+                    if(radio) radio.checked = true;
+                }
+
+                // 3. Populate Expenses
+                const expContainer = document.getElementById('expenses-rows-container');
+                if(expContainer) {
+                    expContainer.innerHTML = '';
+                    const expenses = data.expenses || [];
+                    if(expenses.length > 0) {
+                        expenses.forEach(e => this.addExpenseRow(e.desc, e.amount));
+                    } else {
+                        this.addExpenseRow(); // Add one empty row
+                    }
+                }
+                
+                // 4. Recalculate everything
+                App.calculateSheetTotals();
             }
         };
 
@@ -839,10 +896,13 @@
                     headerToolbar: {
                         left: 'prev,next today',
                         center: 'title',
-                        right: 'dayGridMonth,listYear'
+                        right: 'dayGridMonth,timeGridWeek,timeGridDay'
                     },
                     height: '100%',
                     events: allEvents,
+                    navLinks: true, // Click day/week names to navigate views
+                    dayMaxEvents: true, // Allow "more" link when too many events
+                    nowIndicator: true, // Show current time in week/day view
                     eventDidMount: function(info) {
                         // Style Background Events (Poya Days)
                         if (info.event.display === 'background') {
@@ -970,19 +1030,42 @@
             },
 
             calculateSheetTotals() {
-                // 1. Calculate Sales
-                const amounts = [...document.querySelectorAll('.sheet-input-amt')];
-                const totalSales = amounts.reduce((sum, input) => sum + (parseFloat(input.value) || 0), 0);
+                // 1. Calculate Sales & Count Customers
+                let totalSales = 0;
+                let customerCount = 0;
+
+                // Loop 1-100 to check all fixed rows
+                for(let i = 1; i <= 100; i++) {
+                    const amtInput = document.getElementById(`amt-${i}`);
+                    const descInput = document.getElementById(`desc-${i}`);
+                    
+                    if (amtInput && descInput) {
+                        const val = parseFloat(amtInput.value) || 0;
+                        const desc = descInput.value.trim();
+                        totalSales += val;
+                        
+                        // Count if row has data
+                        if (val > 0 || desc !== "") {
+                            customerCount++;
+                        }
+                    }
+                }
                 
-                // 2. Summary
+                // Update Customer Count UI
+                const countEl = document.getElementById('dsp-total-customers');
+                if(countEl) countEl.textContent = customerCount;
+
+                // 2. Calculate Expenses
+                let totalExpenses = 0;
+                document.querySelectorAll('.exp-amt').forEach(inp => totalExpenses += (parseFloat(inp.value) || 0));
+
+                // 3. Summary
                 const banked = parseFloat(document.getElementById('dsp-banked').value) || 0;
-                // Mock Expenses for now (normally looped)
-                const expenses = 0; 
-                
-                const cashInHand = totalSales - expenses - banked;
+                const cashInHand = totalSales - totalExpenses - banked;
                 
                 // Update UI
                 document.getElementById('dsp-total-sales').textContent = `Rs. ${totalSales}`;
+                document.getElementById('dsp-total-expenses').textContent = `- Rs. ${totalExpenses}`;
                 document.getElementById('dsp-cash-hand').textContent = `Rs. ${cashInHand}`;
                 
                 // Trigger Cash Counter Calc to update variance
@@ -1031,17 +1114,34 @@
 
             gatherAndSaveSheet() {
                 const date = document.getElementById('sheet-date').value;
-                const rows = document.querySelectorAll('#sales-rows-container > div');
                 const sales = [];
                 
-                rows.forEach(row => {
-                    const desc = row.querySelector('.sheet-input').value;
-                    const amount = parseFloat(row.querySelector('.sheet-input-amt').value);
-                    const checked = row.querySelector('input[type="radio"]:checked');
-                    if(desc || amount) {
-                        sales.push({ desc, amount, type: checked ? checked.value : 'cash' });
-                    }
-                });
+                // Gather exactly 100 rows to maintain index positions
+                for(let i = 1; i <= 100; i++) {
+                    const desc = document.getElementById(`desc-${i}`).value;
+                    const amount = document.getElementById(`amt-${i}`).value; // Keep as string to preserve empty state
+                    const checked = document.querySelector(`input[name="pay-${i}"]:checked`);
+                    
+                    // We save even empty rows as placeholders to ensure row 5 stays at index 4
+                    // Or we save a sparse array. Better to save objects with values.
+                    // If we want accurate reproduction on reload, we just save the list.
+                    // Optimization: We can just map 1-100.
+                    
+                    sales.push({ 
+                        desc: desc, 
+                        amount: amount, 
+                        type: checked ? checked.value : 'cash' 
+                    });
+                }
+
+                // Gather Expenses
+                const expenses = [];
+                const expRows = document.getElementById('expenses-rows-container').children;
+                for(let row of expRows) {
+                    const desc = row.querySelector('.exp-desc').value;
+                    const amount = parseFloat(row.querySelector('.exp-amt').value) || 0;
+                    if(desc || amount) expenses.push({desc, amount});
+                }
 
                 const cashCounts = {};
                 document.querySelectorAll('.cc-input').forEach(i => {
@@ -1049,9 +1149,11 @@
                 });
 
                 const data = {
-                    sales,
+                    sales, // Array of 100 items
+                    expenses,
                     banked: parseFloat(document.getElementById('dsp-banked').value) || 0,
                     cashCounts,
+                    totalCustomers: parseInt(document.getElementById('dsp-total-customers').textContent) || 0,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
 
