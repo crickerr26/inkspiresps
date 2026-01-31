@@ -2197,47 +2197,272 @@
       else if (type === "whatsapp") document.getElementById("delivery-whatsapp").classList.remove("hidden");
   }
 
-  // --- DAILY SHEET LOGIC ---
-  function initDailySheet() {
-      document.getElementById('daily-sheet').addEventListener('input', calculateDailySheet);
-      populateSalesTable(); // Create the 50-row table
+  // --- DAILY SHEET & CASH COUNTER LOGIC (UNIFIED DATE-KEYED PERSISTENCE) ---
+  let dailySheetUnsubscribe = null;
 
-      // Try to restore unsaved data first
-      if (restoreUnsavedDailySheet()) {
-          return; // Stop if unsaved data was restored
+  function initDailySheet() {
+      // 1. Listen for Daily Sheet inputs
+      document.getElementById('daily-sheet').addEventListener('input', handleUnifiedInput);
+      
+      // 2. Listen for Cash Counter inputs (Now triggers same save logic)
+      document.getElementById('cash-counter').addEventListener('input', handleUnifiedInput);
+
+      // 3. Initialize UI
+      populateSalesTable(); 
+
+      // 4. Set Initial Date & Load
+      const savedDate = localStorage.getItem('inkspire_last_daily_sheet_date');
+      const defaultDate = savedDate || new Date().toISOString().split('T')[0];
+      
+      const dateInput = document.getElementById('daily-sheet-date');
+      const ccDateInput = document.getElementById('cash-counter-date');
+      
+      if (dateInput) dateInput.value = defaultDate;
+      if (ccDateInput) ccDateInput.value = defaultDate;
+      
+      setupDailySheetListener(defaultDate);
+  }
+
+  // Unified Handler: Triggers save for BOTH Sheet and Cash Counter
+  function handleUnifiedInput(e) {
+      // Immediate math updates for UI responsiveness
+      if (document.getElementById('daily-sheet').contains(e.target)) {
+          calculateDailySheet(false);
+      }
+      if (document.getElementById('cash-counter').contains(e.target)) {
+          calculateCashCounter(false);
+      }
+      
+      // Visual Feedback
+      const statusLabel = document.getElementById('auto-save-status');
+      if(statusLabel) statusLabel.textContent = "Typing...";
+
+      // Debounced Save
+      clearTimeout(autoSaveTimer);
+      autoSaveTimer = setTimeout(() => {
+          saveDailySheetToFirestore();
+      }, 1000); 
+  }
+
+  function loadDailySheet() {
+      const date = document.getElementById('daily-sheet-date').value;
+      const ccDateInput = document.getElementById('cash-counter-date');
+      
+      // Keep dates in sync
+      if (ccDateInput && ccDateInput.value !== date) {
+          ccDateInput.value = date;
       }
 
-      // If no unsaved data, check for a last-saved date
-      const savedDate = localStorage.getItem('inkspire_last_daily_sheet_date');
-      if (savedDate) {
-          document.getElementById('daily-sheet-date').value = savedDate;
-          loadDailySheet(); // Automatically load the data for the saved date
-      } else {
-          // CHANGE: Default to Today and force a LOAD from Firebase.
-          // This ensures that if you added data on your Computer, your Phone sees it immediately.
-          document.getElementById('daily-sheet-date').value = new Date().toISOString().split('T')[0];
-          loadDailySheet(); 
+      if (date) {
+          localStorage.setItem('inkspire_last_daily_sheet_date', date);
+          setupDailySheetListener(date);
+      }
+  }
+
+  function syncCashCounterDate() {
+      const ccDate = document.getElementById('cash-counter-date').value;
+      const dsDateInput = document.getElementById('daily-sheet-date');
+      
+      if (ccDate && dsDateInput.value !== ccDate) {
+          dsDateInput.value = ccDate;
+          loadDailySheet(); // This triggers the main load
       }
   }
   
+  function setupDailySheetListener(date) {
+      // 1. Detach previous listener
+      if (dailySheetUnsubscribe) {
+          dailySheetUnsubscribe();
+          dailySheetUnsubscribe = null;
+      }
+
+      // 2. Show loading state
+      const statusLabel = document.getElementById('auto-save-status');
+      if(statusLabel) statusLabel.textContent = "Syncing...";
+
+      // 3. Attach new listener to the Specific Date Document
+      dailySheetUnsubscribe = db.collection('daily_sheets').doc(date).onSnapshot((doc) => {
+          if (doc.exists) {
+              const data = doc.data();
+              updateUnifiedUI(data);
+              if(statusLabel) statusLabel.textContent = "Synced";
+          } else {
+              // Date doesn't exist in DB -> Clear UI for fresh start
+              clearUnifiedUI();
+              if(statusLabel) statusLabel.textContent = "Ready";
+          }
+          
+          // Re-run calculations after data load
+          calculateDailySheet(false);
+          calculateCashCounter(false);
+          
+      }, (error) => {
+          console.error("Sync Error:", error);
+          if(statusLabel) statusLabel.textContent = "Offline";
+      });
+  }
+
+  function updateUnifiedUI(data) {
+      // Safe Set Helper to avoid cursor jumping
+      const safeSet = (id, value) => {
+          const el = document.getElementById(id);
+          if (el && document.activeElement !== el) {
+              el.value = value || (value === 0 ? 0 : '');
+          }
+      };
+
+      // --- 1. Populate Daily Sheet ---
+      safeSet('total-customers', data.totalCustomers);
+      safeSet('summary-banked', data.banked);
+      safeSet('summary-yesterday-petti', data.yesterdayPetti);
+      safeSet('summary-handover', data.handover);
+
+      // Sales
+      const salesRows = document.querySelectorAll('#sales-table-body tr');
+      const salesData = data.sales || [];
+      salesRows.forEach((row, index) => {
+          const item = salesData[index] || {};
+          const descInput = row.querySelector('.sales-desc');
+          const qtyInput = row.querySelector('.sales-qty');
+          const amtInput = row.querySelector('.sales-amount');
+          
+          if (document.activeElement !== descInput) descInput.value = item.desc || '';
+          if (document.activeElement !== qtyInput) qtyInput.value = item.qty || '';
+          if (document.activeElement !== amtInput) amtInput.value = item.amount || '';
+
+          if (item.paymentType) {
+              const radio = row.querySelector(`input[value="${item.paymentType}"]`);
+              if (radio && !row.querySelector('.payment-cell:hover')) radio.checked = true;
+          } else if (!item.desc && !item.amount) {
+              const checked = row.querySelector('input[type="radio"]:checked');
+              if (checked && !row.querySelector('.payment-cell:hover')) checked.checked = false;
+          }
+      });
+
+      // Expenses
+      const isEditingExpenses = document.activeElement && (document.activeElement.classList.contains('expenses-desc') || document.activeElement.classList.contains('expenses-amount'));
+      if (!isEditingExpenses) {
+          const tbody = document.getElementById('expenses-table-body');
+          tbody.innerHTML = '';
+          if (data.expenses && data.expenses.length > 0) {
+              data.expenses.forEach(e => addExpenseRow(e.desc, e.amount));
+          } else {
+              for(let i=0; i<3; i++) addExpenseRow();
+          }
+      }
+
+      // --- 2. Populate Cash Counter ---
+      // This ensures Cash Counter loads the specific data for THIS date
+      const cashCounts = data.cashCounts || {};
+      document.querySelectorAll('.cash-input').forEach(input => {
+          const denomination = input.dataset.val;
+          const savedVal = cashCounts[denomination];
+          
+          if (document.activeElement !== input) {
+              input.value = savedVal !== undefined ? savedVal : '';
+          }
+      });
+  }
+
+  function clearUnifiedUI() {
+      // Clear Daily Sheet
+      document.getElementById('total-customers').value = '';
+      document.getElementById('summary-banked').value = '0';
+      document.getElementById('summary-yesterday-petti').value = '0';
+      document.getElementById('summary-handover').value = '0';
+      populateSalesTable(); 
+      
+      const expBody = document.getElementById('expenses-table-body');
+      expBody.innerHTML = '';
+      for(let i=0; i<3; i++) addExpenseRow();
+
+      // Clear Cash Counter
+      document.querySelectorAll('.cash-input').forEach(input => input.value = '');
+      
+      // Recalc zeroes
+      calculateDailySheet(false);
+      calculateCashCounter(false);
+  }
+
+  function saveDailySheetToFirestore() {
+      const date = document.getElementById('daily-sheet-date').value;
+      if (!date) return;
+      
+      const statusLabel = document.getElementById('auto-save-status');
+      if(statusLabel) statusLabel.textContent = "Saving...";
+
+      // 1. Gather Sales
+      const sales = [];
+      document.querySelectorAll('#sales-table-body tr').forEach((row, index) => {
+          const desc = row.querySelector('.sales-desc').value.trim();
+          const qty = parseFloat(row.querySelector('.sales-qty').value) || 0;
+          const amount = parseFloat(row.querySelector('.sales-amount').value) || 0;
+          const paymentTypeRadio = row.querySelector(`input[name="paymentType-${index+1}"]:checked`);
+          
+          if (desc || amount > 0 || qty > 0) { 
+              sales.push({ 
+                  desc, qty, amount, 
+                  paymentType: paymentTypeRadio ? paymentTypeRadio.value : null 
+              });
+          }
+      });
+
+      // 2. Gather Expenses
+      const expenses = [];
+      document.querySelectorAll('#expenses-table-body tr').forEach(row => {
+          const desc = row.querySelector('.expenses-desc').value.trim();
+          const amount = parseFloat(row.querySelector('.expenses-amount').value) || 0;
+          if (desc || amount > 0) {
+              expenses.push({ desc, amount });
+          }
+      });
+
+      // 3. Gather Cash Counts (NEW: Strictly tied to date)
+      const cashCounts = {};
+      document.querySelectorAll('.cash-input').forEach(input => {
+          const val = input.value;
+          if(val !== '') {
+              cashCounts[input.dataset.val] = parseFloat(val);
+          }
+      });
+
+      // 4. Construct Payload
+      const data = {
+          date: date,
+          totalCustomers: parseInt(document.getElementById('total-customers').value) || 0,
+          banked: parseFloat(document.getElementById('summary-banked').value) || 0,
+          yesterdayPetti: parseFloat(document.getElementById('summary-yesterday-petti').value) || 0,
+          handover: parseFloat(document.getElementById('summary-handover').value) || 0,
+          sales: sales,
+          expenses: expenses,
+          cashCounts: cashCounts, // Saved within the same date document
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      // Write
+      db.collection('daily_sheets').doc(date).set(data, { merge: true })
+        .then(() => {
+            if(statusLabel) statusLabel.textContent = "Saved";
+            setTimeout(() => { if(statusLabel) statusLabel.textContent = "Synced"; }, 1500);
+        })
+        .catch(err => {
+            console.error("Save failed", err);
+            if(statusLabel) statusLabel.textContent = "Error";
+            showToast("Failed to save changes", true);
+        });
+  }
+
   function populateSalesTable() {
       const tbody = document.getElementById('sales-table-body');
       tbody.innerHTML = ''; 
-      
-      // Generate 100 rows total (50 per page)
       for (let i = 1; i <= 100; i++) {
           const row = tbody.insertRow();
-          
-          // Assign Page Class (1-50 -> Page 1, 51-100 -> Page 2)
           const pageNum = i <= 50 ? 1 : 2;
           row.classList.add(`sales-page-${pageNum}`);
-          if(pageNum === 2) row.style.display = 'none'; // Hide Page 2 initially
+          if(pageNum === 2) row.style.display = 'none'; 
 
-          // Add Auto-Switch Logic on the last row of Page 1
           let autoSwitchLogic = '';
-          if (i === 50) {
-             autoSwitchLogic = 'onkeydown="if(event.key===\'Tab\'){ switchSalesPage(2); }"';
-          }
+          if (i === 50) autoSwitchLogic = 'onkeydown="if(event.key===\'Tab\'){ switchSalesPage(2); }"';
 
           row.innerHTML = `
               <td class="text-center text-gray-500 text-xs">${i}</td>
@@ -2247,28 +2472,21 @@
               <td class="payment-cell">
                   <input type="radio" id="p-cash-${i}" name="paymentType-${i}" value="cash">
                   <label for="p-cash-${i}" title="Cash">C</label>
-
                   <input type="radio" id="p-credit-${i}" name="paymentType-${i}" value="credit">
                   <label for="p-credit-${i}" title="Credit">CR</label>
-
                   <input type="radio" id="p-bank-${i}" name="paymentType-${i}" value="bank">
                   <label for="p-bank-${i}" title="Bank">B</label>
               </td>
           `;
       }
-      // Ensure UI starts on Page 1
       switchSalesPage(1);
   }
 
   function switchSalesPage(pageNum) {
-      // Toggle Rows
       document.querySelectorAll('.sales-page-1').forEach(r => r.style.display = pageNum === 1 ? 'table-row' : 'none');
       document.querySelectorAll('.sales-page-2').forEach(r => r.style.display = pageNum === 2 ? 'table-row' : 'none');
-      
-      // Update Buttons
       const btn1 = document.getElementById('btn-page-1');
       const btn2 = document.getElementById('btn-page-2');
-      
       if(pageNum === 1) {
           btn1.className = "px-3 py-1 text-xs font-bold rounded bg-white text-purple-700 shadow-sm transition-all";
           btn2.className = "px-3 py-1 text-xs font-bold rounded text-purple-200 hover:text-white transition-all";
@@ -2291,339 +2509,80 @@
   function deleteExpenseRow(btn) {
       const row = btn.parentNode.parentNode;
       row.parentNode.removeChild(row);
-      calculateDailySheet();
+      handleUnifiedInput({ target: document.getElementById('daily-sheet') });
   }
   
-  function calculateDailySheet() {
-      // Calculate Total Sale & Breakdown
-      let totalSale = 0;
-      let totalCash = 0;
-      let totalCredit = 0;
-      let totalBank = 0;
-
-      const salesDataForSave = [];
+  function calculateDailySheet(triggerSave = false) { 
+      let totalSale = 0, totalCash = 0, totalCredit = 0, totalBank = 0;
       document.querySelectorAll('#sales-table-body tr').forEach((row, index) => {
           const amount = parseFloat(row.querySelector('.sales-amount').value) || 0;
           const desc = row.querySelector('.sales-desc').value.trim();
-          const qty = parseFloat(row.querySelector('.sales-qty').value) || 0;
-          
-          // Get Checked Radio
           const paymentTypeRadio = row.querySelector(`input[name="paymentType-${index+1}"]:checked`);
           const paymentType = paymentTypeRadio ? paymentTypeRadio.value : null;
           
           if(amount > 0 || desc !== '') {
             totalSale += amount;
-            
-            // Add to specific totals based on selection
             if(paymentType === 'cash') totalCash += amount;
             else if(paymentType === 'credit') totalCredit += amount;
             else if(paymentType === 'bank') totalBank += amount;
-            else {
-                totalCash += amount; // Default
-            }
+            else totalCash += amount; 
           }
-          salesDataForSave.push({ desc, qty, amount, paymentType });
       });
 
-      // Update UI
       document.getElementById('total-sale-footer').textContent = `Rs. ${formatWithCommas(totalSale)}`;
       document.getElementById('summary-total-sale').textContent = `Rs. ${formatWithCommas(totalSale)}`;
-      
-      // Update New Breakdown Fields
       document.getElementById('summary-breakdown-cash').textContent = formatWithCommas(totalCash);
       document.getElementById('summary-breakdown-credit').textContent = formatWithCommas(totalCredit);
       document.getElementById('summary-breakdown-bank').textContent = formatWithCommas(totalBank);
 
-      // Calculate Total Expenses
       let totalExpenses = 0;
-      const expensesDataForSave = [];
       document.querySelectorAll('#expenses-table-body tr').forEach(row => {
           const amount = parseFloat(row.querySelector('.expenses-amount').value) || 0;
-          const desc = row.querySelector('.expenses-desc').value.trim();
           totalExpenses += amount;
-          expensesDataForSave.push({ desc, amount });
       });
       document.getElementById('total-expenses-footer').textContent = `Rs. ${formatWithCommas(totalExpenses)}`;
       document.getElementById('summary-expenses').textContent = `Rs. ${formatWithCommas(totalExpenses)}`;
 
-      // Calculate Summary & Prep for Save
       const banked = parseFloat(document.getElementById('summary-banked').value) || 0;
       const yesterdayPetti = parseFloat(document.getElementById('summary-yesterday-petti').value) || 0;
       const handover = parseFloat(document.getElementById('summary-handover').value) || 0;
-      const totalCustomers = parseInt(document.getElementById('total-customers').value) || 0;
-      const date = document.getElementById('daily-sheet-date').value;
-
-      // 1. Net Sale (Business Performance): Total Revenue - Expenses
       const netSale = totalSale - totalExpenses;
-
-      // 2. Cash In Hand (Physical Drawer): ONLY Cash Sales
-      // Formula: (Yesterday's Petti + Today's Cash Sales) - (Expenses + Banked + Handover)
       const cashInHand = (yesterdayPetti + totalCash) - (totalExpenses + banked + handover);
       
       document.getElementById('summary-net-sale').textContent = `Rs. ${formatWithCommas(netSale)}`;
       
-      // FIX: Store the raw numeric value in a data-attribute so Cash Counter can read it exactly
       const cashInHandEl = document.getElementById('summary-cash-in-hand');
       cashInHandEl.textContent = `Rs. ${formatWithCommas(cashInHand)}`;
-      cashInHandEl.setAttribute('data-value', cashInHand); // <--- Key Fix
+      cashInHandEl.setAttribute('data-value', cashInHand); 
       
-      // Auto-save current state to localStorage
-      const unsavedData = {
-          date, totalCustomers, sales: salesDataForSave, expenses: expensesDataForSave,
-          banked, yesterdayPetti, handover
-      };
-      localStorage.setItem('inkspire_unsaved_daily_sheet', JSON.stringify(unsavedData));
-      
-      // Update Cash Counter if visible (Ensures the Expected Amount updates after fetch)
-      if (!document.getElementById('cash-counter').classList.contains('hidden')) {
-          calculateCashCounter();
-      }
-
-      // --- AUTO SAVE LOGIC ---
-      document.getElementById('auto-save-status').textContent = "Typing...";
-      clearTimeout(autoSaveTimer);
-      autoSaveTimer = setTimeout(() => {
-          saveDailySheet(true); 
-      }, 1000); 
-  }
-  function restoreUnsavedDailySheet() {
-      const unsavedDataJSON = localStorage.getItem('inkspire_unsaved_daily_sheet');
-      if (!unsavedDataJSON) {
-          return false;
-      }
-      
-      const data = JSON.parse(unsavedDataJSON);
-      
-      document.getElementById('daily-sheet-date').value = data.date;
-      document.getElementById('total-customers').value = data.totalCustomers || 0;
-      
-      const rows = document.querySelectorAll('#sales-table-body tr');
-      if (data.sales) {
-          data.sales.forEach((item, index) => {
-              if (rows[index]) {
-                  rows[index].querySelector('.sales-desc').value = item.desc || '';
-                  rows[index].querySelector('.sales-qty').value = item.qty || '';
-                  rows[index].querySelector('.sales-amount').value = item.amount || '';
-                  if (item.paymentType) {
-                      const radio = rows[index].querySelector(`input[value="${item.paymentType}"]`);
-                      if (radio) radio.checked = true;
-                  }
-              }
-          });
-      }
-
-      document.getElementById('expenses-table-body').innerHTML = '';
-      if (data.expenses) {
-          data.expenses.forEach(item => addExpenseRow(item.desc, item.amount));
-      }
-      
-      document.getElementById('summary-banked').value = data.banked || 0;
-      document.getElementById('summary-yesterday-petti').value = data.yesterdayPetti || 0;
-      document.getElementById('summary-handover').value = data.handover || 0;
-
-      calculateDailySheet();
-      showToast("Restored your unsaved changes.", false);
-      return true;
+      if(triggerSave) saveDailySheetToFirestore();
   }
   
-  function clearDailySheet() {
-      localStorage.removeItem('inkspire_unsaved_daily_sheet');
-      document.getElementById('total-customers').value = '';
-      populateSalesTable(); // Resets the sales table to 50 blank rows
-      document.getElementById('expenses-table-body').innerHTML = '';
-      document.getElementById('summary-banked').value = '0';
-      document.getElementById('summary-yesterday-petti').value = '0';
-      document.getElementById('summary-handover').value = '0';
-      for(let i = 0; i < 3; i++) addExpenseRow(); // Start with 3 blank expense rows
-      calculateDailySheet();
-      // After clearing, remove the temporary save so it doesn't reappear
-      localStorage.removeItem('inkspire_unsaved_daily_sheet');
-  }
-  
-  function printDailySheet() {
-      window.print();
-  }
-
-  async function saveDailySheet(isAutoSave = false) {
-      const date = document.getElementById('daily-sheet-date').value;
-      const statusLabel = document.getElementById('auto-save-status');
-      
-      if (!date) {
-          if(!isAutoSave) showToast("Please select a date before saving.", true);
-          return;
-      }
-      const docId = date;
-
-      // 1. Gather Sales Data
-      const sales = [];
-      document.querySelectorAll('#sales-table-body tr').forEach((row, index) => {
-          const desc = row.querySelector('.sales-desc').value.trim();
-          const qty = parseFloat(row.querySelector('.sales-qty').value) || 0;
-          const amount = parseFloat(row.querySelector('.sales-amount').value) || 0;
-          const paymentTypeRadio = row.querySelector(`input[name="paymentType-${index+1}"]:checked`);
-          const paymentType = paymentTypeRadio ? paymentTypeRadio.value : null;
-
-          if (desc || amount > 0) { 
-              sales.push({ desc, qty, amount, paymentType });
-          }
-      });
-
-      // 2. Gather Expenses Data
-      const expenses = [];
-      document.querySelectorAll('#expenses-table-body tr').forEach(row => {
-          const desc = row.querySelector('.expenses-desc').value.trim();
-          const amount = parseFloat(row.querySelector('.expenses-amount').value) || 0;
-          if (desc || amount > 0) {
-              expenses.push({ desc, amount });
-          }
-      });
-
-      // 3. Calculate Actual Cash Counted (NEW: Fixes the 0 value in Firebase)
-      let actualCashCounted = 0;
-      document.querySelectorAll('.cash-input').forEach(input => {
-          const val = parseFloat(input.dataset.val) || 0;
-          const count = parseFloat(input.value) || 0;
-          actualCashCounted += val * count;
-      });
-      
-      const sheetData = {
-          date: date,
-          totalCustomers: parseInt(document.getElementById('total-customers').value) || 0,
-          sales: sales,
-          expenses: expenses,
-          actualCashCounted: actualCashCounted, // Added this field
-          banked: parseFloat(document.getElementById('summary-banked').value) || 0,
-          yesterdayPetti: parseFloat(document.getElementById('summary-yesterday-petti').value) || 0,
-          handover: parseFloat(document.getElementById('summary-handover').value) || 0,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      };
-
-      try {
-          if(isAutoSave) statusLabel.textContent = "Saving...";
-          
-          await db.collection('daily_sheets').doc(docId).set(sheetData);
-          
-          if(isAutoSave) {
-              statusLabel.textContent = "Saved";
-              setTimeout(() => statusLabel.textContent = "", 2000);
-          } else {
-              showToast("Daily Sheet saved successfully!");
-          }
-
-          localStorage.removeItem('inkspire_unsaved_daily_sheet'); 
-          localStorage.setItem('inkspire_last_daily_sheet_date', date); 
-      } catch (err) {
-          console.error("Error saving daily sheet: ", err);
-          if(!isAutoSave) showToast("Error saving daily sheet.", true);
-      }
-  }
-  
-  async function loadDailySheet() {
-      // Cancel any pending auto-save from the previous screen state
-      clearTimeout(autoSaveTimer);
-      document.getElementById('auto-save-status').textContent = "";
-
-      // User is explicitly loading, so clear any unsaved work
-      localStorage.removeItem('inkspire_unsaved_daily_sheet');
-
-      const date = document.getElementById('daily-sheet-date').value;
-      if (!date) {
-          showToast("Please select a date to load.", true);
-          return;
-      }
-      const docId = date;
-      
-      try {
-          const doc = await db.collection('daily_sheets').doc(docId).get();
-          if (doc.exists) {
-              const data = doc.data();
-              
-              clearDailySheet(); // Clear sheet before loading new data
-
-              document.getElementById('total-customers').value = data.totalCustomers || 0;
-              
-              if(data.sales && data.sales.length > 0) {
-                  const rows = document.querySelectorAll('#sales-table-body tr');
-                  data.sales.forEach((item, index) => {
-                      if(rows[index]) {
-                          rows[index].querySelector('.sales-desc').value = item.desc || '';
-                          rows[index].querySelector('.sales-qty').value = item.qty || '';
-                          rows[index].querySelector('.sales-amount').value = item.amount || '';
-                          if(item.paymentType) {
-                              const radio = rows[index].querySelector(`input[value="${item.paymentType}"]`);
-                              if(radio) radio.checked = true;
-                          }
-                      }
-                  });
-              }
-
-              document.getElementById('expenses-table-body').innerHTML = '';
-              if(data.expenses && data.expenses.length > 0) {
-                  data.expenses.forEach(item => addExpenseRow(item.desc, item.amount));
-              } else {
-                  for(let i = 0; i < 3; i++) addExpenseRow();
-              }
-              
-              document.getElementById('summary-banked').value = data.banked || 0;
-              document.getElementById('summary-yesterday-petti').value = data.yesterdayPetti || 0;
-              document.getElementById('summary-handover').value = data.handover || 0;
-
-              calculateDailySheet();
-              showToast(`Sheet for ${date} loaded.`);
-
-          } else {
-              showToast(`No data found for ${date}. A new sheet is ready.`, true);
-              clearDailySheet();
-          }
-          // Save the currently loaded date to localStorage
-          localStorage.setItem('inkspire_last_daily_sheet_date', date);
-      } catch(err) {
-          console.error("Error loading daily sheet: ", err);
-          showToast("Error loading data.", true);
-      }
-  }
+  function saveDailySheet() { saveDailySheetToFirestore(); }
+  function printDailySheet() { window.print(); }
 
   // --- CASH COUNTER LOGIC ---
-  
-  function syncCashCounterDate() {
-      const ccDate = document.getElementById('cash-counter-date').value;
-      const dsDateInput = document.getElementById('daily-sheet-date');
-      
-      // If the Cash Counter date changes, update the Daily Sheet date and reload data
-      if (ccDate && dsDateInput.value !== ccDate) {
-          dsDateInput.value = ccDate;
-          loadDailySheet(); // This fetches data from Firebase and triggers calculateDailySheet
-      }
-  }
+  // Note: Listeners are now attached in initDailySheet via handleUnifiedInput
 
-  // Attach Listeners to Cash Inputs
-  document.querySelectorAll('.cash-input').forEach(input => {
-      input.addEventListener('input', calculateCashCounter);
-  });
-
-  // When showing the section, ensure we recalculate based on latest Daily Sheet data
+  // Section visibility check for date sync
   const originalShowSection = showSection;
   showSection = function(id) {
       originalShowSection(id);
-      
       if (id === 'cash-counter') {
-          // Logic: When entering Cash Counter, ensure we are looking at the selected date's data
           const ccDateInput = document.getElementById('cash-counter-date');
           const dsDateInput = document.getElementById('daily-sheet-date');
           
           if (ccDateInput.value && ccDateInput.value !== dsDateInput.value) {
-             // If dates mismatch, force Daily Sheet to switch to Cash Counter's date
              dsDateInput.value = ccDateInput.value;
-             loadDailySheet(); // Load data for that date
+             loadDailySheet(); 
           } else {
-             // Dates match, just recalculate current view
-             calculateDailySheet(); 
-             calculateCashCounter();
+             calculateDailySheet(false); 
+             calculateCashCounter(false);
           }
       }
   };
 
-  function calculateCashCounter() {
+  function calculateCashCounter(triggerSave = false) {
       let totalCounted = 0;
 
       // 1. Calculate Inputs
@@ -2633,8 +2592,6 @@
           const subtotal = denomination * count;
           
           totalCounted += subtotal;
-
-          // Update individual row total
           const sumDisplay = document.getElementById(`sum-${denomination}`);
           if(sumDisplay) sumDisplay.textContent = formatWithCommas(subtotal);
       });
@@ -2645,12 +2602,9 @@
 
       // 3. Get Expected Amount from Daily Sheet
       const expectedEl = document.getElementById('summary-cash-in-hand');
-      
-      // FIX: Read the raw data-attribute first. If missing, fall back to text parsing.
       let expectedVal = parseFloat(expectedEl.getAttribute('data-value'));
       
       if (isNaN(expectedVal)) {
-           // Fallback logic in case data-value isn't set yet (prevents the 0.66 error)
            const expectedText = expectedEl.textContent;
            expectedVal = parseFloat(expectedText.replace(/[^0-9.-]+/g,"")) || 0;
       }
@@ -2666,29 +2620,23 @@
       varianceDisplay.textContent = `Rs. ${formatWithCommas(variance)}`;
 
       if (Math.abs(variance) < 1) {
-          // Balanced
           varianceCard.className = "bg-green-100 p-6 rounded-lg border border-green-300 text-center transition-colors duration-300";
           varianceDisplay.className = "text-3xl font-extrabold text-green-700";
           varianceMsg.className = "text-sm font-bold text-green-800 mt-2";
           varianceMsg.textContent = "Perfect Match! ✅";
       } else if (variance > 0) {
-          // Surplus (Extra Money)
           varianceCard.className = "bg-blue-100 p-6 rounded-lg border border-blue-300 text-center transition-colors duration-300";
           varianceDisplay.className = "text-3xl font-extrabold text-blue-700";
           varianceMsg.className = "text-sm font-bold text-blue-800 mt-2";
           varianceMsg.textContent = "Surplus (Extra Cash in Drawer) ⚠️";
       } else {
-          // Deficit (Missing Money)
           varianceCard.className = "bg-red-100 p-6 rounded-lg border border-red-300 text-center transition-colors duration-300";
           varianceDisplay.className = "text-3xl font-extrabold text-red-700";
           varianceMsg.className = "text-sm font-bold text-red-800 mt-2";
           varianceMsg.textContent = "Shortage (Missing Cash) 🛑";
       }
       
-      // Save state locally so user doesn't lose counts on refresh/nav
-      const counts = {};
-      document.querySelectorAll('.cash-input').forEach(i => counts[i.dataset.val] = i.value);
-      localStorage.setItem('inkspire_cash_counter_counts', JSON.stringify(counts));
+      // Removed local storage call - data is saved via handleUnifiedInput -> saveDailySheetToFirestore
   }
 
   function resetCashCounter() {
@@ -2696,20 +2644,10 @@
       document.querySelectorAll('.cash-input').forEach(input => {
           input.value = '';
       });
-      calculateCashCounter();
+      handleUnifiedInput({ target: document.getElementById('cash-counter') });
   }
 
-  // Restore Cash Counts on Load
-  window.addEventListener('load', () => {
-      const savedCounts = JSON.parse(localStorage.getItem('inkspire_cash_counter_counts'));
-      if (savedCounts) {
-          document.querySelectorAll('.cash-input').forEach(input => {
-              if (savedCounts[input.dataset.val]) {
-                  input.value = savedCounts[input.dataset.val];
-              }
-          });
-      }
-  });
+  // Removed legacy window.load listener for cash counts as it conflicted with date-based loading
 
 </script>
 </body>
