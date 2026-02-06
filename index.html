@@ -603,10 +603,14 @@
                             <div class="bg-primary-700 text-white p-6 rounded-2xl shadow-xl">
                                 <h3 class="font-bold text-lg mb-4 opacity-90">Daily Summary</h3>
                                 <div class="space-y-3 text-sm">
-                                    <div class="flex justify-between"><span>Total Sales</span><span class="font-bold" id="dsp-total-sales">Rs. 0</span></div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="opacity-80">Total Sales</span>
+                                        <span class="font-bold text-3xl tracking-tight transition-transform duration-200 origin-right" id="dsp-total-sales">Rs. 0</span>
+                                    </div>
+                                    <div class="h-px bg-white/10 my-2"></div>
                                     <div class="flex justify-between text-green-200"><span>Petty Cash (In)</span><span><input type="number" id="dsp-petty-cash" oninput="App.calculateSheetTotals()" class="w-20 bg-white/20 border-none rounded p-1 text-right text-white placeholder-white/50 text-sm focus:ring-0"></span></div>
                                     <div class="flex justify-between text-red-200"><span>Expenses</span><span id="dsp-total-expenses">- Rs. 0</span></div>
-                                    <div class="flex justify-between text-blue-200"><span>Banked</span><span><input type="number" id="dsp-banked" oninput="App.calculateSheetTotals()" class="w-20 bg-white/20 border-none rounded p-1 text-right text-white placeholder-white/50 text-sm focus:ring-0"></span></div>
+                                    <div class="flex justify-between text-blue-200"><span>Banked (B)</span><span><input type="number" id="dsp-banked" oninput="App.calculateSheetTotals()" class="w-20 bg-white/20 border-none rounded p-1 text-right text-white placeholder-white/50 text-sm focus:ring-0"></span></div>
                                     <div class="h-px bg-white/20 my-2"></div>
                                     <div class="flex justify-between text-lg font-bold"><span>Cash In Hand</span><span id="dsp-cash-hand">Rs. 0</span></div>
                                 </div>
@@ -755,9 +759,9 @@
                         <div class="col-span-5"><input type="text" id="desc-${i}" placeholder="Description" class="sheet-input w-full p-2 border border-slate-200 rounded text-sm focus:border-primary-500 outline-none bg-transparent" oninput="App.debouncedSaveSheet()"></div>
                         <div class="col-span-3"><input type="number" id="amt-${i}" placeholder="Amount" class="sheet-input-amt w-full p-2 border border-slate-200 rounded text-sm focus:border-primary-500 outline-none font-mono text-right" oninput="App.calculateSheetTotals()"></div>
                         <div class="col-span-3 flex gap-1 justify-center">
-                            <label class="cursor-pointer"><input type="radio" name="pay-${i}" value="cash" class="peer sr-only" checked onchange="App.debouncedSaveSheet()"><span class="block w-6 h-6 rounded bg-slate-100 peer-checked:bg-green-500 peer-checked:text-white text-center text-xs leading-6 font-bold text-slate-400 transition-colors">C</span></label>
-                            <label class="cursor-pointer"><input type="radio" name="pay-${i}" value="credit" class="peer sr-only" onchange="App.debouncedSaveSheet()"><span class="block w-6 h-6 rounded bg-slate-100 peer-checked:bg-yellow-500 peer-checked:text-white text-center text-xs leading-6 font-bold text-slate-400 transition-colors">R</span></label>
-                            <label class="cursor-pointer"><input type="radio" name="pay-${i}" value="bank" class="peer sr-only" onchange="App.debouncedSaveSheet()"><span class="block w-6 h-6 rounded bg-slate-100 peer-checked:bg-blue-500 peer-checked:text-white text-center text-xs leading-6 font-bold text-slate-400 transition-colors">B</span></label>
+                            <label class="cursor-pointer"><input type="radio" name="pay-${i}" value="cash" class="peer sr-only" checked onchange="App.calculateSheetTotals()"><span class="block w-6 h-6 rounded bg-slate-100 peer-checked:bg-green-500 peer-checked:text-white text-center text-xs leading-6 font-bold text-slate-400 transition-colors">C</span></label>
+                            <label class="cursor-pointer"><input type="radio" name="pay-${i}" value="credit" class="peer sr-only" onchange="App.calculateSheetTotals()"><span class="block w-6 h-6 rounded bg-slate-100 peer-checked:bg-yellow-500 peer-checked:text-white text-center text-xs leading-6 font-bold text-slate-400 transition-colors">R</span></label>
+                            <label class="cursor-pointer"><input type="radio" name="pay-${i}" value="bank" class="peer sr-only" onchange="App.calculateSheetTotals()"><span class="block w-6 h-6 rounded bg-slate-100 peer-checked:bg-blue-500 peer-checked:text-white text-center text-xs leading-6 font-bold text-slate-400 transition-colors">B</span></label>
                         </div>
                     `;
                     container.appendChild(div);
@@ -1200,6 +1204,7 @@
             calculateSheetTotals(shouldSave = true) {
                 // 1. Calculate Sales & Count Customers
                 let totalSales = 0;
+                let bankSales = 0;
                 let customerCount = 0;
 
                 // Loop 1-100 to check all fixed rows
@@ -1212,6 +1217,12 @@
                         const desc = descInput.value.trim();
                         totalSales += val;
                         
+                        // Check if Payment Type is Bank (B)
+                        const isBank = document.querySelector(`input[name="pay-${i}"][value="bank"]`)?.checked;
+                        if (isBank) {
+                            bankSales += val;
+                        }
+
                         // Count if row has data
                         if (val > 0 || desc !== "") {
                             customerCount++;
@@ -1227,16 +1238,30 @@
                 let totalExpenses = 0;
                 document.querySelectorAll('.exp-amt').forEach(inp => totalExpenses += (parseFloat(inp.value) || 0));
 
-                // 3. Summary
-                const banked = parseFloat(document.getElementById('dsp-banked').value) || 0;
+                // 3. Update Banked Field Automatically based on 'B' selections
+                // This ensures 'B' items are visible in Banked and removed from Cash In Hand logic below
+                const bankedInput = document.getElementById('dsp-banked');
+                if(bankedInput) bankedInput.value = bankSales;
+
+                // 4. Summary
+                const banked = bankSales; // Use calculated bank sales
                 const pettyCash = parseFloat(document.getElementById('dsp-petty-cash').value) || 0;
                 
                 // Math: Calculate with precision and store in App cache
+                // Formula: Total Sales (includes B) + Petty - Expenses - Banked (removes B) = Cash In Hand
                 const cashInHand = Math.round((totalSales + pettyCash - totalExpenses - banked) * 100) / 100;
                 this.cachedCashInHand = cashInHand;
                 
-                // Update UI
-                document.getElementById('dsp-total-sales').textContent = `Rs. ${Utils.formatMoney(totalSales)}`;
+                // Update UI with Animation
+                const totalSalesEl = document.getElementById('dsp-total-sales');
+                totalSalesEl.textContent = `Rs. ${Utils.formatMoney(totalSales)}`;
+                
+                // Animation Trigger
+                totalSalesEl.classList.remove('scale-110');
+                void totalSalesEl.offsetWidth; // Force reflow
+                totalSalesEl.classList.add('scale-110');
+                setTimeout(() => totalSalesEl.classList.remove('scale-110'), 200);
+
                 document.getElementById('dsp-total-expenses').textContent = `- Rs. ${Utils.formatMoney(totalExpenses)}`;
                 document.getElementById('dsp-cash-hand').textContent = `Rs. ${Utils.formatMoney(cashInHand)}`;
                 
