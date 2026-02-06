@@ -331,9 +331,65 @@
         const Views = {
             Calendar() {
                 return `
+                    <style>
+                        /* iPhone Calendar Theme Styles */
+                        .fc-theme-standard td, .fc-theme-standard th { border: none !important; }
+                        .fc-scrollgrid { border: none !important; }
+                        .fc-col-header-cell-cushion { 
+                            color: #9ca3af; 
+                            font-weight: 700; 
+                            text-transform: uppercase; 
+                            font-size: 0.7rem; 
+                            letter-spacing: 0.05em;
+                            padding-bottom: 10px !important;
+                        }
+                        .fc-daygrid-day-top { flex-direction: row; justify-content: center; margin-top: 4px; }
+                        .fc-daygrid-day-number { 
+                            color: #1f2937; 
+                            font-weight: 600; 
+                            font-size: 0.9rem;
+                            width: 32px;
+                            height: 32px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            border-radius: 50%;
+                            z-index: 2;
+                        }
+                        .fc-day-today .fc-daygrid-day-number { 
+                            background-color: #ef4444 !important; 
+                            color: white !important; 
+                        }
+                        .fc-day-today { background: transparent !important; }
+                        .fc-daygrid-day-events { margin-top: 2px; }
+                        .fc-event { 
+                            border-radius: 6px; 
+                            font-size: 0.7rem; 
+                            border: none; 
+                            padding: 1px 4px;
+                            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+                        }
+                        .fc-toolbar-title { 
+                            font-size: 1.5rem !important; 
+                            font-weight: 800 !important; 
+                            color: #ef4444; 
+                        }
+                        .fc-button-primary { 
+                            background: white !important; 
+                            border: 1px solid #e5e7eb !important; 
+                            color: #374151 !important; 
+                            font-weight: 600 !important; 
+                            box-shadow: none !important;
+                            border-radius: 8px !important;
+                        }
+                        .fc-button-primary:hover { background: #f9fafb !important; }
+                        .fc-button-active { background: #ef4444 !important; color: white !important; border-color: #ef4444 !important; }
+                        .fc-day-other .fc-daygrid-day-number { opacity: 0.3; }
+                    </style>
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 h-full flex flex-col">
                         <div class="flex flex-wrap gap-4 mb-4 text-xs font-bold text-slate-600 border-b border-slate-100 pb-4">
-                            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span> Urgent (< 2 Days)</div>
+                            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-800"></span> Overdue</div>
+                            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-600 animate-pulse"></span> Urgent (< 2 Days)</div>
                             <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-orange-400"></span> Warning (< 5 Days)</div>
                             <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-blue-500"></span> Normal</div>
                             <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500"></span> Completed</div>
@@ -935,11 +991,15 @@
                     { title: "Christmas", start: "2026-12-25", color: "#16a34a", isHoliday: true }
                 ];
 
-                // 2. Map Job Events
+                // 2. Map Job Events with Strict Date Logic
                 const jobEvents = State.jobs.map(job => {
-                    const deadline = new Date(job.deadline);
-                    const today = new Date();
-                    const diffTime = deadline - today;
+                    const deadlineDate = new Date(job.deadline);
+                    deadlineDate.setHours(0,0,0,0); // Normalize to midnight
+                    
+                    const todayDate = new Date();
+                    todayDate.setHours(0,0,0,0); // Normalize to midnight
+
+                    const diffTime = deadlineDate - todayDate;
                     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
                     let color = '#3b82f6'; // Default Blue
@@ -950,11 +1010,14 @@
                     } else if (job.status === 'cancelled') {
                         color = '#94a3b8'; // Gray
                     } else {
-                        if (diffDays <= 2) {
-                            color = '#ef4444'; // Red (Urgent)
+                        // In Progress Logic
+                        if (diffDays < 0) {
+                            color = '#1e293b'; // Overdue (Dark Slate)
+                        } else if (diffDays <= 2) {
+                            color = '#dc2626'; // Urgent Red
                             classNames.push('animate-pulse');
                         } else if (diffDays <= 5) {
-                            color = '#fb923c'; // Orange (Warning)
+                            color = '#fb923c'; // Warning Orange
                         }
                     }
 
@@ -964,7 +1027,7 @@
                         backgroundColor: color,
                         borderColor: color,
                         classNames: classNames,
-                        extendedProps: { ...job, isJob: true }
+                        extendedProps: { ...job, isJob: true, diffDays: diffDays }
                     };
                 });
 
@@ -978,15 +1041,17 @@
                 this.calendarInstance = new FullCalendar.Calendar(el, {
                     initialView: 'dayGridMonth',
                     headerToolbar: {
-                        left: 'prev,next today',
-                        center: 'title',
-                        right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                        left: 'title', // iPhone style: Title on left
+                        center: '',
+                        right: 'prev,next today' // Nav on right
                     },
-                    height: '100%',
+                    contentHeight: 'auto', // Clean height
+                    fixedWeekCount: false, // Only show relevant weeks (Show all relevant days)
+                    showNonCurrentDates: false, // Cleaner look
                     events: allEvents,
-                    navLinks: true, // Click day/week names to navigate views
-                    dayMaxEvents: true, // Allow "more" link when too many events
-                    nowIndicator: true, // Show current time in week/day view
+                    navLinks: true, 
+                    dayMaxEvents: true, 
+                    nowIndicator: true, 
                     eventDidMount: function(info) {
                         // Style Background Events (Poya Days)
                         if (info.event.display === 'background') {
@@ -1005,29 +1070,55 @@
                         if (info.event.extendedProps.isHoliday || info.event.display === 'background') return;
 
                         const j = info.event.extendedProps;
+                        
+                        // Status Badge
+                        const statusColors = {
+                            'in_progress': 'bg-yellow-100 text-yellow-700',
+                            'completed': 'bg-green-100 text-green-700',
+                            'cancelled': 'bg-slate-100 text-slate-700'
+                        };
+                        const statusBadge = `<span class="px-2 py-1 rounded text-xs font-bold uppercase ${statusColors[j.status] || 'bg-gray-100'}">${j.status.replace('_', ' ')}</span>`;
+                        
+                        // Urgency text
+                        let urgencyText = "";
+                        if(j.status === 'in_progress') {
+                            if(j.diffDays < 0) urgencyText = `<span class="text-red-600 font-bold ml-2 text-xs">⚠️ OVERDUE by ${Math.abs(j.diffDays)} days</span>`;
+                            else if(j.diffDays <= 2) urgencyText = `<span class="text-red-500 font-bold ml-2 text-xs">🔥 Due Soon</span>`;
+                        }
+
                         UI.openModal(`
                             <div class="p-6">
-                                <h3 class="text-xl font-bold text-slate-800 mb-1">${j.customer}</h3>
-                                <p class="text-sm text-slate-500 mb-4">${j.phone}</p>
-                                
-                                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-4">
-                                    <p class="font-medium text-slate-700">${j.details}</p>
-                                </div>
-                                
-                                <div class="grid grid-cols-2 gap-4 mb-6 text-sm">
+                                <div class="flex justify-between items-start mb-4">
                                     <div>
-                                        <p class="text-xs text-slate-400 font-bold uppercase">Deadline</p>
-                                        <p class="font-bold text-slate-700">${j.deadline}</p>
+                                        <h3 class="text-xl font-bold text-slate-800 mb-1 flex items-center gap-2">
+                                            ${j.customer}
+                                            ${statusBadge}
+                                        </h3>
+                                        <a href="tel:${j.phone}" class="text-sm text-primary-600 hover:underline flex items-center gap-1"><i class="ph ph-phone"></i> ${j.phone}</a>
                                     </div>
-                                    <div>
-                                        <p class="text-xs text-slate-400 font-bold uppercase">Price</p>
-                                        <p class="font-bold text-slate-700">Rs. ${Utils.formatMoney(j.price)}</p>
+                                    <div class="text-right">
+                                         <p class="text-xs text-slate-400 font-bold uppercase">Job Value</p>
+                                         <p class="font-bold text-lg text-slate-800">Rs. ${Utils.formatMoney(j.price)}</p>
                                     </div>
                                 </div>
-
-                                <div class="flex justify-end gap-2">
-                                    <button onclick="UI.closeModal()" class="px-4 py-2 text-slate-500 font-bold hover:bg-slate-50 rounded-lg">Close</button>
-                                    <button onclick="UI.navigate('tasks'); UI.closeModal();" class="px-4 py-2 bg-primary-600 text-white font-bold rounded-lg hover:bg-primary-700">Go to Tasks</button>
+                                
+                                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-6 relative overflow-hidden group">
+                                    <div class="absolute top-0 left-0 w-1 h-full bg-primary-500"></div>
+                                    <p class="text-xs text-slate-400 font-bold uppercase mb-2">Printing Specification</p>
+                                    <p class="font-medium text-slate-700 text-sm leading-relaxed">${j.details}</p>
+                                </div>
+                                
+                                <div class="flex items-center justify-between border-t border-slate-100 pt-4 mt-4">
+                                    <div class="text-sm">
+                                        <span class="text-slate-500">Deadline:</span> <span class="font-bold text-slate-800">${j.deadline}</span>
+                                        ${urgencyText}
+                                    </div>
+                                    <div class="flex gap-2">
+                                        ${j.status === 'in_progress' ? 
+                                            `<button onclick="App.updateStatus('${j.id}', 'completed'); UI.closeModal();" class="px-4 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 text-sm flex items-center gap-2"><i class="ph ph-check"></i> Mark Complete</button>` 
+                                            : ''}
+                                        <button onclick="UI.navigate('tasks'); UI.closeModal();" class="px-4 py-2 border border-slate-200 text-slate-600 font-bold rounded-lg hover:bg-slate-50 text-sm">View All Tasks</button>
+                                    </div>
                                 </div>
                             </div>
                         `);
