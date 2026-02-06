@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Send Order | INKSPIRE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: { fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] } }
+        }
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyBK4ZYB37Ke3E_bdkhY3XeScrelwSl8fYupw",
+            authDomain: "inkspire-93fa1.firebaseapp.com",
+            projectId: "inkspire-93fa1",
+            storageBucket: "inkspire-93fa1.firebasestorage.app",
+            messagingSenderId: "78600122689",
+            appId: "1:78600122689:web:37da9c31db4fb36d4d71c0"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const storage = firebase.storage();
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex items-center justify-center p-4">
+
+    <div class="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div class="bg-violet-600 p-6 text-white text-center">
+            <i class="ph ph-paper-plane-tilt text-4xl mb-2"></i>
+            <h1 class="text-xl font-bold">Send New Order</h1>
+            <p class="text-violet-200 text-sm">Upload files or record a voice note</p>
+        </div>
+
+        <form id="orderForm" onsubmit="submitOrder(event)" class="p-6 space-y-5">
+            <div class="space-y-3">
+                <input type="text" id="name" required placeholder="Your Name" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-violet-500 outline-none transition-all">
+                <input type="tel" id="phone" required placeholder="Phone Number" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-violet-500 outline-none transition-all">
+            </div>
+
+            <div class="border border-dashed border-slate-300 rounded-xl p-4 text-center space-y-2">
+                <p class="text-xs font-bold text-slate-400 uppercase">Voice Note</p>
+                <div class="flex items-center justify-center gap-4">
+                    <button type="button" id="recordBtn" onclick="toggleRecording()" class="w-12 h-12 rounded-full bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center text-xl transition-all"><i class="ph ph-microphone"></i></button>
+                    <div id="audioPreview" class="hidden">
+                        <audio id="audioPlayer" controls class="h-8 w-40"></audio>
+                        <button type="button" onclick="clearAudio()" class="text-xs text-red-500 font-bold mt-1">Delete</button>
+                    </div>
+                </div>
+                <p id="recordStatus" class="text-xs text-slate-400">Tap to record</p>
+            </div>
+
+            <div>
+                <label class="block w-full p-4 border-2 border-dashed border-slate-200 rounded-xl hover:border-violet-400 cursor-pointer transition-all text-center">
+                    <i class="ph ph-upload-simple text-2xl text-slate-400 mb-1"></i>
+                    <span class="block text-sm font-bold text-slate-600">Tap to upload files</span>
+                    <span class="block text-xs text-slate-400">PDF, JPG, PNG (Max 10MB)</span>
+                    <input type="file" id="files" multiple class="hidden" onchange="showFileCount(this)">
+                </label>
+                <div id="fileList" class="mt-2 text-xs text-slate-500 font-medium text-center"></div>
+            </div>
+
+            <textarea id="details" rows="3" placeholder="Type instructions here..." class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-violet-500 outline-none transition-all"></textarea>
+
+            <button type="submit" id="submitBtn" class="w-full bg-violet-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-violet-700 transition-all shadow-lg shadow-violet-500/30">
+                Send Order
+            </button>
+        </form>
+    </div>
+
+    <div id="loader" class="fixed inset-0 bg-white/90 hidden flex-col items-center justify-center z-50">
+        <div class="w-12 h-12 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin mb-4"></div>
+        <p class="font-bold text-slate-600">Uploading files...</p>
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        let audioBlob = null;
+
+        // --- Voice Logic ---
+        async function toggleRecording() {
+            const btn = document.getElementById('recordBtn');
+            const status = document.getElementById('recordStatus');
+
+            if (!mediaRecorder || mediaRecorder.state === "inactive") {
+                // Start Recording
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder.start();
+                    
+                    btn.classList.add('bg-red-500', 'text-white', 'animate-pulse');
+                    btn.classList.remove('bg-red-50', 'text-red-500');
+                    btn.innerHTML = '<i class="ph ph-stop"></i>';
+                    status.textContent = "Recording...";
+                    
+                    audioChunks = [];
+                    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                    mediaRecorder.onstop = () => {
+                        audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        document.getElementById('audioPlayer').src = audioUrl;
+                        document.getElementById('audioPreview').classList.remove('hidden');
+                        document.getElementById('recordBtn').classList.add('hidden');
+                        status.textContent = "Recorded";
+                    };
+                } catch (err) { alert("Microphone access denied"); }
+            } else {
+                // Stop Recording
+                mediaRecorder.stop();
+                btn.className = "w-12 h-12 rounded-full bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center text-xl transition-all";
+            }
+        }
+
+        function clearAudio() {
+            audioBlob = null;
+            document.getElementById('audioPreview').classList.add('hidden');
+            document.getElementById('recordBtn').classList.remove('hidden');
+            document.getElementById('recordBtn').innerHTML = '<i class="ph ph-microphone"></i>';
+            document.getElementById('recordStatus').textContent = "Tap to record";
+        }
+
+        function showFileCount(input) {
+            const count = input.files.length;
+            document.getElementById('fileList').textContent = count > 0 ? `${count} files selected` : '';
+        }
+
+        // --- Submit Logic ---
+        async function submitOrder(e) {
+            e.preventDefault();
+            const loader = document.getElementById('loader');
+            const btn = document.getElementById('submitBtn');
+            
+            loader.classList.remove('hidden');
+            
+            try {
+                const timestamp = Date.now();
+                const name = document.getElementById('name').value;
+                const uploadTasks = [];
+                let audioUrl = null;
+                let fileUrls = [];
+
+                // 1. Upload Audio
+                if (audioBlob) {
+                    const audioRef = storage.ref(`orders/${timestamp}_${name}/voice_note.mp3`);
+                    await audioRef.put(audioBlob);
+                    audioUrl = await audioRef.getDownloadURL();
+                }
+
+                // 2. Upload Files
+                const files = document.getElementById('files').files;
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    const fileRef = storage.ref(`orders/${timestamp}_${name}/${file.name}`);
+                    await fileRef.put(file);
+                    const url = await fileRef.getDownloadURL();
+                    fileUrls.push({ name: file.name, url: url });
+                }
+
+                // 3. Save to Firestore
+                await db.collection('requests').add({
+                    customerName: name,
+                    phone: document.getElementById('phone').value,
+                    details: document.getElementById('details').value,
+                    audioUrl: audioUrl,
+                    attachmentUrls: fileUrls,
+                    status: 'pending',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                alert("Order Sent Successfully!");
+                window.location.reload();
+            } catch (err) {
+                console.error(err);
+                alert("Error sending order. Please try again.");
+                loader.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
