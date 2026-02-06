@@ -169,22 +169,27 @@
                 this.auth = firebase.auth();
                 this.storage = firebase.storage();
 
-                // 1. Enable Offline Persistence (Critical for unstable connections)
-                this.db.enablePersistence()
-                    .catch((err) => {
-                        if (err.code == 'failed-precondition') {
-                            console.warn('Persistence failed: Multiple tabs open');
-                        } else if (err.code == 'unimplemented') {
-                            console.warn('Persistence failed: Browser not supported');
-                        }
-                    });
+                // CHECK: Is this the Public Order Page?
+                const isPublicMode = new URLSearchParams(window.location.search).get('mode') === 'public_order';
+
+                // 1. Enable Offline Persistence (Only if NOT public mode to prevent upload hangs)
+                if (!isPublicMode) {
+                    this.db.enablePersistence()
+                        .catch((err) => {
+                            if (err.code == 'failed-precondition') {
+                                console.warn('Persistence failed: Multiple tabs open');
+                            } else if (err.code == 'unimplemented') {
+                                console.warn('Persistence failed: Browser not supported');
+                            }
+                        });
+                }
                 
                 // 2. Persist Anonymous User (Prevents new UID generation on reload)
                 this.auth.onAuthStateChanged(user => {
                     if (user) {
                         console.log("🔥 Connected as", user.uid);
                         // Only start listeners once authenticated
-                        if (!State.listeners.jobs) this.startListeners();
+                        if (!State.listeners.jobs && !isPublicMode) this.startListeners();
                     } else {
                         this.auth.signInAnonymously();
                     }
@@ -387,8 +392,8 @@
                 const pending = State.requests.filter(r => r.status === 'pending');
                 const history = State.requests.filter(r => r.status !== 'pending');
                 
-                // ⚠️ IMPORTANT: Replace this URL with your actual GitHub Pages URL after uploading order.html
-                const publicOrderLink = "https://your-username.github.io/order.html"; 
+                // Dynamic link to the Public Order mode on this same file
+                const publicOrderLink = window.location.href.split('?')[0] + "?mode=public_order";
 
                 return `
                     <div class="space-y-8">
@@ -1042,12 +1047,159 @@
         const App = {
             init() {
                 DB.init();
+                
+                // CHECK: Is this the Public Order Page?
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('mode') === 'public_order') {
+                    this.renderPublicOrder();
+                    return; // Stop loading the Manager Dashboard
+                }
+
                 UI.init();
                 // Set Date for Daily Sheet
                 setTimeout(() => this.loadSheetForDate(new Date().toISOString().split('T')[0]), 500);
             },
             
             refresh() { location.reload(); },
+
+            // --- PUBLIC ORDER LOGIC ---
+            mediaRecorder: null,
+            audioChunks: [],
+            audioBlob: null,
+
+            renderPublicOrder() {
+                document.title = "Send Order | INKSPIRE";
+                document.body.innerHTML = `
+                    <div class="bg-slate-50 text-slate-800 min-h-screen flex items-center justify-center p-4 font-sans">
+                        <div class="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
+                            <div class="bg-violet-600 p-6 text-white text-center">
+                                <i class="ph ph-paper-plane-tilt text-4xl mb-2"></i>
+                                <h1 class="text-xl font-bold">Send New Order</h1>
+                                <p class="text-violet-200 text-sm">Upload files or record a voice note</p>
+                            </div>
+                            <form id="orderForm" onsubmit="App.submitPublicOrder(event)" class="p-6 space-y-5">
+                                <div class="space-y-3">
+                                    <input type="text" id="name" required placeholder="Your Name" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-violet-500 outline-none transition-all">
+                                    <input type="tel" id="phone" required placeholder="Phone Number" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-violet-500 outline-none transition-all">
+                                </div>
+                                <div class="border border-dashed border-slate-300 rounded-xl p-4 text-center space-y-2">
+                                    <p class="text-xs font-bold text-slate-400 uppercase">Voice Note</p>
+                                    <div class="flex items-center justify-center gap-4">
+                                        <button type="button" id="recordBtn" onclick="App.toggleRecording()" class="w-12 h-12 rounded-full bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center text-xl transition-all"><i class="ph ph-microphone"></i></button>
+                                        <div id="audioPreview" class="hidden">
+                                            <audio id="audioPlayer" controls class="h-8 w-40"></audio>
+                                            <button type="button" onclick="App.clearAudio()" class="text-xs text-red-500 font-bold mt-1">Delete</button>
+                                        </div>
+                                    </div>
+                                    <p id="recordStatus" class="text-xs text-slate-400">Tap to record</p>
+                                </div>
+                                <div>
+                                    <label class="block w-full p-4 border-2 border-dashed border-slate-200 rounded-xl hover:border-violet-400 cursor-pointer transition-all text-center">
+                                        <i class="ph ph-upload-simple text-2xl text-slate-400 mb-1"></i>
+                                        <span class="block text-sm font-bold text-slate-600">Tap to upload files</span>
+                                        <span class="block text-xs text-slate-400">PDF, JPG, PNG (Max 10MB)</span>
+                                        <input type="file" id="files" multiple class="hidden" onchange="document.getElementById('fileList').textContent = this.files.length + ' files selected'">
+                                    </label>
+                                    <div id="fileList" class="mt-2 text-xs text-slate-500 font-medium text-center"></div>
+                                </div>
+                                <textarea id="details" rows="3" placeholder="Type instructions here..." class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-violet-500 outline-none transition-all"></textarea>
+                                <button type="submit" id="submitBtn" class="w-full bg-violet-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-violet-700 transition-all shadow-lg shadow-violet-500/30">Send Order</button>
+                            </form>
+                        </div>
+                        <div id="loader" class="fixed inset-0 bg-white/90 hidden flex-col items-center justify-center z-50">
+                            <div class="w-12 h-12 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin mb-4"></div>
+                            <p class="font-bold text-slate-600">Uploading files...</p>
+                        </div>
+                    </div>
+                `;
+            },
+
+            async toggleRecording() {
+                const btn = document.getElementById('recordBtn');
+                const status = document.getElementById('recordStatus');
+                if (!this.mediaRecorder || this.mediaRecorder.state === "inactive") {
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        this.mediaRecorder = new MediaRecorder(stream);
+                        this.mediaRecorder.start();
+                        btn.classList.add('bg-red-500', 'text-white', 'animate-pulse');
+                        btn.classList.remove('bg-red-50', 'text-red-500');
+                        btn.innerHTML = '<i class="ph ph-stop"></i>';
+                        status.textContent = "Recording...";
+                        this.audioChunks = [];
+                        this.mediaRecorder.ondataavailable = e => this.audioChunks.push(e.data);
+                        this.mediaRecorder.onstop = () => {
+                            this.audioBlob = new Blob(this.audioChunks, { type: 'audio/mp3' });
+                            document.getElementById('audioPlayer').src = URL.createObjectURL(this.audioBlob);
+                            document.getElementById('audioPreview').classList.remove('hidden');
+                            document.getElementById('recordBtn').classList.add('hidden');
+                            status.textContent = "Recorded";
+                        };
+                    } catch (err) { alert("Microphone access denied"); }
+                } else {
+                    this.mediaRecorder.stop();
+                }
+            },
+
+            clearAudio() {
+                this.audioBlob = null;
+                document.getElementById('audioPreview').classList.add('hidden');
+                document.getElementById('recordBtn').classList.remove('hidden');
+                document.getElementById('recordBtn').innerHTML = '<i class="ph ph-microphone"></i>';
+                document.getElementById('recordStatus').textContent = "Tap to record";
+            },
+
+            async submitPublicOrder(e) {
+                e.preventDefault();
+                const loader = document.getElementById('loader');
+                loader.classList.remove('hidden');
+                
+                try {
+                    const timestamp = Date.now();
+                    const name = document.getElementById('name').value;
+                    let audioUrl = null;
+                    let fileUrls = [];
+
+                    // Upload Audio
+                    if (this.audioBlob) {
+                        try {
+                            const audioRef = DB.storage.ref(`orders/${timestamp}_${name}/voice_note.mp3`);
+                            await audioRef.put(this.audioBlob);
+                            audioUrl = await audioRef.getDownloadURL();
+                        } catch(err) { console.error("Audio Upload Failed", err); }
+                    }
+
+                    // Upload Files
+                    const files = document.getElementById('files').files;
+                    for (let i = 0; i < files.length; i++) {
+                        try {
+                            const file = files[i];
+                            const fileRef = DB.storage.ref(`orders/${timestamp}_${name}/${file.name}`);
+                            await fileRef.put(file);
+                            const url = await fileRef.getDownloadURL();
+                            fileUrls.push({ name: file.name, url: url });
+                        } catch(err) { console.error("File Upload Failed", err); }
+                    }
+
+                    // Save Data
+                    await DB.db.collection('requests').add({
+                        customerName: name,
+                        phone: document.getElementById('phone').value,
+                        details: document.getElementById('details').value,
+                        audioUrl: audioUrl,
+                        attachmentUrls: fileUrls,
+                        status: 'pending',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    alert("Order Sent Successfully!");
+                    window.location.reload();
+                } catch (err) {
+                    console.error(err);
+                    alert("Error: " + err.message);
+                    loader.classList.add('hidden');
+                }
+            },
 
             // --- SMART CALENDAR LOGIC ---
             calendarInstance: null,
