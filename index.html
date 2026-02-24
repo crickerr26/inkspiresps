@@ -164,7 +164,23 @@
         // --- FIREBASE SERVICE ---
         const DB = {
             init() {
-                firebase.initializeApp(firebaseConfig);
+                // 1. HARDCODED CONFIG: Uses the specific API Key you provided
+                const config = {
+                    apiKey: "AIzaSyBK4zY3Et3E_bdKhY3Ke6cre1wSl8fyupw", 
+                    authDomain: "inkspire-93fa1.firebaseapp.com",
+                    projectId: "inkspire-93fa1",
+                    storageBucket: "inkspire-93fa1.firebasestorage.app",
+                    messagingSenderId: "78600122689",
+                    appId: "1:78600122689:web:37da9c31db4fb36d4d71c0"
+                };
+
+                // Initialize only if not already initialized
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(config);
+                } else {
+                    firebase.app(); 
+                }
+
                 this.db = firebase.firestore();
                 this.auth = firebase.auth();
                 this.storage = firebase.storage();
@@ -172,7 +188,7 @@
                 // CHECK: Is this the Public Order Page?
                 const isPublicMode = new URLSearchParams(window.location.search).get('mode') === 'public_order';
 
-                // 1. Enable Offline Persistence (Only if NOT public mode to prevent upload hangs)
+                // 2. Enable Offline Persistence (Only if NOT public mode to prevent upload hangs)
                 if (!isPublicMode) {
                     this.db.enablePersistence()
                         .catch((err) => {
@@ -184,21 +200,21 @@
                         });
                 }
                 
-                // 2. Persist Anonymous User (Prevents new UID generation on reload)
+                // 3. Persist Anonymous User
                 this.auth.onAuthStateChanged(user => {
                     if (user) {
                         console.log("🔥 Connected as", user.uid);
-                        // Only start listeners once authenticated
+                        // Only start listeners once authenticated and NOT in public mode
                         if (!State.listeners.jobs && !isPublicMode) this.startListeners();
                     } else {
-                        this.auth.signInAnonymously();
+                        this.auth.signInAnonymously().catch(e => console.error("Auth Error:", e));
                     }
                 });
             },
 
             startListeners() {
                 // Jobs Listener
-                if (State.listeners.jobs) return; // Prevent duplicate listeners
+                if (State.listeners.jobs) return; 
 
                 State.listeners.jobs = this.db.collection('jobs').orderBy('createdAt', 'desc').onSnapshot(snap => {
                     const data = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
@@ -248,12 +264,11 @@
             async loadDailySheet(date) {
                 UI.showSyncStatus('Loading...');
                 try {
-                    // Uses cache first if offline due to enablePersistence()
                     const doc = await this.db.collection('daily_sheets').doc(date).get();
                     if (doc.exists) {
                         State.set('currentDailySheet', doc.data());
                     } else {
-                        State.set('currentDailySheet', null); // Fresh sheet
+                        State.set('currentDailySheet', null); 
                     }
                     UI.showSyncStatus('Live', 'success');
                 } catch (e) {
@@ -1117,32 +1132,34 @@
             async toggleRecording() {
                 const btn = document.getElementById('recordBtn');
                 const status = document.getElementById('recordStatus');
-                if (!this.mediaRecorder || this.mediaRecorder.state === "inactive") {
+                if (!App.mediaRecorder || App.mediaRecorder.state === "inactive") {
                     try {
                         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                        this.mediaRecorder = new MediaRecorder(stream);
-                        this.mediaRecorder.start();
+                        App.mediaRecorder = new MediaRecorder(stream);
+                        App.mediaRecorder.start();
                         btn.classList.add('bg-red-500', 'text-white', 'animate-pulse');
                         btn.classList.remove('bg-red-50', 'text-red-500');
                         btn.innerHTML = '<i class="ph ph-stop"></i>';
                         status.textContent = "Recording...";
-                        this.audioChunks = [];
-                        this.mediaRecorder.ondataavailable = e => this.audioChunks.push(e.data);
-                        this.mediaRecorder.onstop = () => {
-                            this.audioBlob = new Blob(this.audioChunks, { type: 'audio/mp3' });
-                            document.getElementById('audioPlayer').src = URL.createObjectURL(this.audioBlob);
+                        App.audioChunks = [];
+                        App.mediaRecorder.ondataavailable = e => App.audioChunks.push(e.data);
+                        App.mediaRecorder.onstop = () => {
+                            App.audioBlob = new Blob(App.audioChunks, { type: 'audio/mp3' });
+                            document.getElementById('audioPlayer').src = URL.createObjectURL(App.audioBlob);
                             document.getElementById('audioPreview').classList.remove('hidden');
                             document.getElementById('recordBtn').classList.add('hidden');
                             status.textContent = "Recorded";
                         };
                     } catch (err) { alert("Microphone access denied"); }
                 } else {
-                    this.mediaRecorder.stop();
+                    App.mediaRecorder.stop();
+                    // Properly release the microphone streams to prevent lockups
+                    App.mediaRecorder.stream.getTracks().forEach(track => track.stop());
                 }
             },
 
             clearAudio() {
-                this.audioBlob = null;
+                App.audioBlob = null;
                 document.getElementById('audioPreview').classList.add('hidden');
                 document.getElementById('recordBtn').classList.remove('hidden');
                 document.getElementById('recordBtn').innerHTML = '<i class="ph ph-microphone"></i>';
@@ -1155,33 +1172,45 @@
                 loader.classList.remove('hidden');
                 
                 try {
+                    // 1. CRITICAL FIX: Ensure User is Connected before uploading
+                    if (!DB.auth.currentUser) {
+                        console.log("Waiting for connection...");
+                        await DB.auth.signInAnonymously();
+                    }
+
                     const timestamp = Date.now();
                     const name = document.getElementById('name').value;
                     let audioUrl = null;
                     let fileUrls = [];
 
-                    // Upload Audio
-                    if (this.audioBlob) {
+                    // Clean the name to prevent Firebase Storage path breaking
+                    const safeName = name.replace(/[^a-zA-Z0-9.-]/g, '_');
+
+                    // 2. Upload Audio using explicit App context
+                    if (App.audioBlob) {
                         try {
-                            const audioRef = DB.storage.ref(`orders/${timestamp}_${name}/voice_note.mp3`);
-                            await audioRef.put(this.audioBlob);
+                            const audioRef = DB.storage.ref(`orders/${timestamp}_${safeName}/voice_note.mp3`);
+                            await audioRef.put(App.audioBlob);
                             audioUrl = await audioRef.getDownloadURL();
                         } catch(err) { console.error("Audio Upload Failed", err); }
                     }
 
-                    // Upload Files
+                    // 3. Upload Files
                     const files = document.getElementById('files').files;
                     for (let i = 0; i < files.length; i++) {
                         try {
                             const file = files[i];
-                            const fileRef = DB.storage.ref(`orders/${timestamp}_${name}/${file.name}`);
+                            // Clean filename to prevent storage errors
+                            const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+                            const fileRef = DB.storage.ref(`orders/${timestamp}_${safeName}/${cleanFileName}`);
+                            
                             await fileRef.put(file);
                             const url = await fileRef.getDownloadURL();
                             fileUrls.push({ name: file.name, url: url });
                         } catch(err) { console.error("File Upload Failed", err); }
                     }
 
-                    // Save Data
+                    // 4. Save to Firestore
                     await DB.db.collection('requests').add({
                         customerName: name,
                         phone: document.getElementById('phone').value,
