@@ -407,8 +407,9 @@
                 const pending = State.requests.filter(r => r.status === 'pending');
                 const history = State.requests.filter(r => r.status !== 'pending');
                 
-                // Dynamic link to the Public Order mode on this same file
-                const publicOrderLink = window.location.href.split('?')[0] + "?mode=public_order";
+                // Dynamic link to the external Public Order file
+                const currentUrl = window.location.href.split('?')[0];
+                const publicOrderLink = currentUrl.substring(0, currentUrl.lastIndexOf('/')) + "/order 1.html";
 
                 return `
                     <div class="space-y-8">
@@ -1144,17 +1145,18 @@
                         App.audioChunks = [];
                         App.mediaRecorder.ondataavailable = e => App.audioChunks.push(e.data);
                         App.mediaRecorder.onstop = () => {
-                            App.audioBlob = new Blob(App.audioChunks, { type: 'audio/mp3' });
+                            // FIX: Browser MediaRecorder cannot reliably encode mp3. Use webm.
+                            App.audioBlob = new Blob(App.audioChunks, { type: 'audio/webm' });
                             document.getElementById('audioPlayer').src = URL.createObjectURL(App.audioBlob);
                             document.getElementById('audioPreview').classList.remove('hidden');
                             document.getElementById('recordBtn').classList.add('hidden');
                             status.textContent = "Recorded";
+                            // FIX: Kill tracks AFTER encoding finishes, not before.
+                            App.mediaRecorder.stream.getTracks().forEach(track => track.stop());
                         };
                     } catch (err) { alert("Microphone access denied"); }
                 } else {
                     App.mediaRecorder.stop();
-                    // Properly release the microphone streams to prevent lockups
-                    App.mediaRecorder.stream.getTracks().forEach(track => track.stop());
                 }
             },
 
@@ -1180,16 +1182,15 @@
 
                     const timestamp = Date.now();
                     const name = document.getElementById('name').value;
+                    const safeName = name.replace(/[^a-zA-Z0-9.-]/g, '_'); // CRITICAL FIX: Sanitize name
                     let audioUrl = null;
                     let fileUrls = [];
 
-                    // Clean the name to prevent Firebase Storage path breaking
-                    const safeName = name.replace(/[^a-zA-Z0-9.-]/g, '_');
-
-                    // 2. Upload Audio using explicit App context
+                    // 2. Upload Audio (Using absolute App context)
                     if (App.audioBlob) {
                         try {
-                            const audioRef = DB.storage.ref(`orders/${timestamp}_${safeName}/voice_note.mp3`);
+                            // FIX: Match the extension with the blob type (webm)
+                            const audioRef = DB.storage.ref(`orders/${timestamp}_${safeName}/voice_note.webm`);
                             await audioRef.put(App.audioBlob);
                             audioUrl = await audioRef.getDownloadURL();
                         } catch(err) { console.error("Audio Upload Failed", err); }
@@ -1200,7 +1201,6 @@
                     for (let i = 0; i < files.length; i++) {
                         try {
                             const file = files[i];
-                            // Clean filename to prevent storage errors
                             const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
                             const fileRef = DB.storage.ref(`orders/${timestamp}_${safeName}/${cleanFileName}`);
                             
