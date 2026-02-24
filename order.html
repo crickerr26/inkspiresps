@@ -3,20 +3,138 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Send Order | INKSPIRE</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <title>INKSPIRE | Enterprise Manager</title>
     
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/auto-animate/0.7.0/index.min.js"></script>
+
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 
     <script>
         tailwind.config = {
-            theme: { fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] } }
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+                    colors: {
+                        primary: { 50: '#f5f3ff', 100: '#ede9fe', 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9', 900: '#4c1d95' },
+                        surface: '#ffffff',
+                        background: '#f8fafc'
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.4s ease-out',
+                        'slide-up': 'slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
+                    },
+                    keyframes: {
+                        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+                        slideUp: { '0%': { transform: 'translateY(20px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } }
+                    }
+                }
+            }
         }
+    </script>
+
+    <style>
+        body { background-color: #f8fafc; overflow-x: hidden; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        .nav-item.active {
+            background: linear-gradient(90deg, #7c3aed 0%, #6d28d9 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+        }
+        .card-hover { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .card-hover:hover { transform: translateY(-4px); box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.1); }
         
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #7c3aed;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="text-slate-800 h-screen flex overflow-hidden">
+
+    <aside class="w-72 bg-white border-r border-slate-200 flex flex-col z-20 transition-all duration-300 fixed md:relative transform -translate-x-full md:translate-x-0 h-full" id="sidebar">
+        <div class="p-8 pb-4 flex items-center gap-3">
+            <div class="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+                <i class="ph ph-printer text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-xl tracking-tight text-slate-900">INKSPIRE</h1>
+                <p class="text-xs text-slate-500 font-medium uppercase tracking-wider">Manager Pro</p>
+            </div>
+        </div>
+
+        <div class="p-4 space-y-1 flex-1 overflow-y-auto" id="nav-container">
+            </div>
+
+        <div class="p-4 border-t border-slate-100">
+            <button onclick="App.refresh()" class="w-full flex items-center justify-center gap-2 p-3 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                <i class="ph ph-arrows-clockwise"></i> Refresh Data
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-full relative overflow-hidden">
+        <header class="h-16 glass-panel border-b border-slate-200 flex items-center justify-between px-6 z-10">
+            <button onclick="UI.toggleSidebar()" class="md:hidden p-2 text-slate-600"><i class="ph ph-list text-2xl"></i></button>
+            <h2 id="page-title" class="text-lg font-bold text-slate-800 animate-fade-in">Dashboard</h2>
+            <div class="flex items-center gap-4">
+                <div id="sync-status" class="text-xs font-medium text-slate-400 flex items-center gap-1">
+                    <span class="w-2 h-2 rounded-full bg-green-500"></span> Live
+                </div>
+            </div>
+        </header>
+
+        <div id="content-area" class="flex-1 overflow-y-auto p-6 scroll-smooth relative">
+            </div>
+    </main>
+
+    <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300">
+        <div class="bg-slate-800 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3">
+            <i id="toast-icon" class="ph ph-check-circle text-green-400 text-xl"></i>
+            <div>
+                <h4 id="toast-title" class="font-bold text-sm">Success</h4>
+                <p id="toast-msg" class="text-xs text-slate-300">Action completed successfully</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-overlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg transform scale-95 transition-all duration-300 overflow-hidden" id="modal-content">
+            </div>
+    </div>
+
+    <script>
+        /**
+         * ------------------------------------------------------------------
+         * CORE ARCHITECTURE
+         * ------------------------------------------------------------------
+         */
+        
+        // --- CONFIG ---
         const firebaseConfig = {
             apiKey: "AIzaSyBK4ZYB37Ke3E_bdkhY3XeScrelwSl8fYupw",
             authDomain: "inkspire-93fa1.firebaseapp.com",
@@ -25,165 +143,1670 @@
             messagingSenderId: "78600122689",
             appId: "1:78600122689:web:37da9c31db4fb36d4d71c0"
         };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const storage = firebase.storage();
-    </script>
-</head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex items-center justify-center p-4">
 
-    <div class="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
-        <div class="bg-violet-600 p-6 text-white text-center">
-            <i class="ph ph-paper-plane-tilt text-4xl mb-2"></i>
-            <h1 class="text-xl font-bold">Send New Order</h1>
-            <p class="text-violet-200 text-sm">Upload files or record a voice note</p>
-        </div>
-
-        <form id="orderForm" onsubmit="submitOrder(event)" class="p-6 space-y-5">
-            <div class="space-y-3">
-                <input type="text" id="name" required placeholder="Your Name" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-violet-500 outline-none transition-all">
-                <input type="tel" id="phone" required placeholder="Phone Number" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-violet-500 outline-none transition-all">
-            </div>
-
-            <div class="border border-dashed border-slate-300 rounded-xl p-4 text-center space-y-2">
-                <p class="text-xs font-bold text-slate-400 uppercase">Voice Note</p>
-                <div class="flex items-center justify-center gap-4">
-                    <button type="button" id="recordBtn" onclick="toggleRecording()" class="w-12 h-12 rounded-full bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center text-xl transition-all"><i class="ph ph-microphone"></i></button>
-                    <div id="audioPreview" class="hidden">
-                        <audio id="audioPlayer" controls class="h-8 w-40"></audio>
-                        <button type="button" onclick="clearAudio()" class="text-xs text-red-500 font-bold mt-1">Delete</button>
-                    </div>
-                </div>
-                <p id="recordStatus" class="text-xs text-slate-400">Tap to record</p>
-            </div>
-
-            <div>
-                <label class="block w-full p-4 border-2 border-dashed border-slate-200 rounded-xl hover:border-violet-400 cursor-pointer transition-all text-center">
-                    <i class="ph ph-upload-simple text-2xl text-slate-400 mb-1"></i>
-                    <span class="block text-sm font-bold text-slate-600">Tap to upload files</span>
-                    <span class="block text-xs text-slate-400">PDF, JPG, PNG (Max 10MB)</span>
-                    <input type="file" id="files" multiple class="hidden" onchange="showFileCount(this)">
-                </label>
-                <div id="fileList" class="mt-2 text-xs text-slate-500 font-medium text-center"></div>
-            </div>
-
-            <textarea id="details" rows="3" placeholder="Type instructions here..." class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-violet-500 outline-none transition-all"></textarea>
-
-            <button type="submit" id="submitBtn" class="w-full bg-violet-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-violet-700 transition-all shadow-lg shadow-violet-500/30">
-                Send Order
-            </button>
-        </form>
-    </div>
-
-    <div id="loader" class="fixed inset-0 bg-white/90 hidden flex-col items-center justify-center z-50">
-        <div class="w-12 h-12 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin mb-4"></div>
-        <p class="font-bold text-slate-600">Uploading files...</p>
-    </div>
-
-    <script>
-        let mediaRecorder;
-        let audioChunks = [];
-        let audioBlob = null;
-
-        // --- Voice Logic ---
-        async function toggleRecording() {
-            const btn = document.getElementById('recordBtn');
-            const status = document.getElementById('recordStatus');
-
-            if (!mediaRecorder || mediaRecorder.state === "inactive") {
-                // Start Recording
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    mediaRecorder = new MediaRecorder(stream);
-                    mediaRecorder.start();
-                    
-                    btn.classList.add('bg-red-500', 'text-white', 'animate-pulse');
-                    btn.classList.remove('bg-red-50', 'text-red-500');
-                    btn.innerHTML = '<i class="ph ph-stop"></i>';
-                    status.textContent = "Recording...";
-                    
-                    audioChunks = [];
-                    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-                    mediaRecorder.onstop = () => {
-                        audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
-                        const audioUrl = URL.createObjectURL(audioBlob);
-                        document.getElementById('audioPlayer').src = audioUrl;
-                        document.getElementById('audioPreview').classList.remove('hidden');
-                        document.getElementById('recordBtn').classList.add('hidden');
-                        status.textContent = "Recorded";
-                    };
-                } catch (err) { alert("Microphone access denied"); }
-            } else {
-                // Stop Recording
-                mediaRecorder.stop();
-                btn.className = "w-12 h-12 rounded-full bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center text-xl transition-all";
+        // --- STATE MANAGEMENT ---
+        const State = {
+            user: null,
+            jobs: [],
+            requests: [], // Customer Orders
+            expenses: [],
+            inventory: [],
+            currentDailySheet: null, // The sheet for the selected date
+            listeners: {},
+            
+            // Reactive Store
+            set(key, value) {
+                this[key] = value;
+                document.dispatchEvent(new CustomEvent('stateChanged', { detail: { key, value } }));
             }
-        }
+        };
 
-        function clearAudio() {
-            audioBlob = null;
-            document.getElementById('audioPreview').classList.add('hidden');
-            document.getElementById('recordBtn').classList.remove('hidden');
-            document.getElementById('recordBtn').innerHTML = '<i class="ph ph-microphone"></i>';
-            document.getElementById('recordStatus').textContent = "Tap to record";
-        }
+        // --- FIREBASE SERVICE ---
+        const DB = {
+            init() {
+                // 1. HARDCODED CONFIG: Uses the specific API Key you provided
+                const config = {
+                    apiKey: "AIzaSyBK4zY3Et3E_bdKhY3Ke6cre1wSl8fyupw", 
+                    authDomain: "inkspire-93fa1.firebaseapp.com",
+                    projectId: "inkspire-93fa1",
+                    storageBucket: "inkspire-93fa1.firebasestorage.app",
+                    messagingSenderId: "78600122689",
+                    appId: "1:78600122689:web:37da9c31db4fb36d4d71c0"
+                };
 
-        function showFileCount(input) {
-            const count = input.files.length;
-            document.getElementById('fileList').textContent = count > 0 ? `${count} files selected` : '';
-        }
-
-        // --- Submit Logic ---
-        async function submitOrder(e) {
-            e.preventDefault();
-            const loader = document.getElementById('loader');
-            const btn = document.getElementById('submitBtn');
-            
-            loader.classList.remove('hidden');
-            
-            try {
-                const timestamp = Date.now();
-                const name = document.getElementById('name').value;
-                const uploadTasks = [];
-                let audioUrl = null;
-                let fileUrls = [];
-
-                // 1. Upload Audio
-                if (audioBlob) {
-                    const audioRef = storage.ref(`orders/${timestamp}_${name}/voice_note.mp3`);
-                    await audioRef.put(audioBlob);
-                    audioUrl = await audioRef.getDownloadURL();
+                // Initialize only if not already initialized
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(config);
+                } else {
+                    firebase.app(); 
                 }
 
-                // 2. Upload Files
-                const files = document.getElementById('files').files;
-                for (let i = 0; i < files.length; i++) {
-                    const file = files[i];
-                    const fileRef = storage.ref(`orders/${timestamp}_${name}/${file.name}`);
-                    await fileRef.put(file);
-                    const url = await fileRef.getDownloadURL();
-                    fileUrls.push({ name: file.name, url: url });
-                }
+                this.db = firebase.firestore();
+                this.auth = firebase.auth();
+                this.storage = firebase.storage();
 
-                // 3. Save to Firestore
-                await db.collection('requests').add({
-                    customerName: name,
-                    phone: document.getElementById('phone').value,
-                    details: document.getElementById('details').value,
-                    audioUrl: audioUrl,
-                    attachmentUrls: fileUrls,
-                    status: 'pending',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                // CHECK: Is this the Public Order Page?
+                const isPublicMode = new URLSearchParams(window.location.search).get('mode') === 'public_order';
+
+                // 2. Enable Offline Persistence (Only if NOT public mode to prevent upload hangs)
+                if (!isPublicMode) {
+                    this.db.enablePersistence()
+                        .catch((err) => {
+                            if (err.code == 'failed-precondition') {
+                                console.warn('Persistence failed: Multiple tabs open');
+                            } else if (err.code == 'unimplemented') {
+                                console.warn('Persistence failed: Browser not supported');
+                            }
+                        });
+                }
+                
+                // 3. Persist Anonymous User
+                this.auth.onAuthStateChanged(user => {
+                    if (user) {
+                        console.log("🔥 Connected as", user.uid);
+                        // Only start listeners once authenticated and NOT in public mode
+                        if (!State.listeners.jobs && !isPublicMode) this.startListeners();
+                    } else {
+                        this.auth.signInAnonymously().catch(e => console.error("Auth Error:", e));
+                    }
+                });
+            },
+
+            startListeners() {
+                // Jobs Listener
+                if (State.listeners.jobs) return; 
+
+                State.listeners.jobs = this.db.collection('jobs').orderBy('createdAt', 'desc').onSnapshot(snap => {
+                    const data = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                    State.set('jobs', data);
                 });
 
-                alert("Order Sent Successfully!");
-                window.location.reload();
-            } catch (err) {
-                console.error(err);
-                alert("Error sending order. Please try again.");
-                loader.classList.add('hidden');
+                // Expenses Listener
+                State.listeners.expenses = this.db.collection('expenses').orderBy('createdAt', 'desc').onSnapshot(snap => {
+                    const data = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                    State.set('expenses', data);
+                });
+
+                // Inventory Listener
+                State.listeners.inventory = this.db.collection('inventory').onSnapshot(snap => {
+                    const data = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                    State.set('inventory', data);
+                });
+
+                // Requests Listener (Incoming Orders)
+                State.listeners.requests = this.db.collection('requests').orderBy('createdAt', 'desc').limit(50).onSnapshot(snap => {
+                    const data = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                    
+                    // Notification Logic
+                    const oldPending = (State.requests || []).filter(r => r.status === 'pending').length;
+                    const newPending = data.filter(r => r.status === 'pending').length;
+                    
+                    if(newPending > oldPending) {
+                        UI.showToast('New Order Received', 'Check the Inbox!', 'success');
+                    }
+                    
+                    State.set('requests', data);
+                });
+            },
+
+            // Unified Save Function for Daily Sheet
+            async saveDailySheet(date, data) {
+                try {
+                    UI.showSyncStatus('Saving...');
+                    await this.db.collection('daily_sheets').doc(date).set(data, { merge: true });
+                    UI.showSyncStatus('Saved', 'success');
+                } catch (e) {
+                    console.error(e);
+                    UI.showToast('Error Saving Sheet', 'Check connection', 'error');
+                }
+            },
+
+            async loadDailySheet(date) {
+                UI.showSyncStatus('Loading...');
+                try {
+                    const doc = await this.db.collection('daily_sheets').doc(date).get();
+                    if (doc.exists) {
+                        State.set('currentDailySheet', doc.data());
+                    } else {
+                        State.set('currentDailySheet', null); 
+                    }
+                    UI.showSyncStatus('Live', 'success');
+                } catch (e) {
+                    console.error(e);
+                    UI.showSyncStatus('Offline Mode', 'neutral');
+                }
             }
-        }
+        };
+
+        // --- UI RENDERER ---
+        const UI = {
+            container: document.getElementById('content-area'),
+            currentRoute: null,
+            
+            routes: {
+                dashboard: { label: 'Dashboard', icon: 'ph-squares-four', render: () => Views.Dashboard() },
+                inbox: { label: 'Web Orders', icon: 'ph-tray', render: () => Views.Inbox() },
+                newJob: { label: 'New Job', icon: 'ph-plus-circle', render: () => Views.NewJob() },
+                calendar: { label: 'Calendar', icon: 'ph-calendar-check', render: () => Views.Calendar() }, 
+                tasks: { label: 'Tasks & Orders', icon: 'ph-check-square', render: () => Views.Tasks() },
+                dailySheet: { label: 'Daily Sheet', icon: 'ph-file-text', render: () => Views.DailySheet() },
+                inventory: { label: 'Inventory', icon: 'ph-package', render: () => Views.Inventory() },
+                expenses: { label: 'Expenses', icon: 'ph-receipt', render: () => Views.Expenses() },
+                reports: { label: 'Reports', icon: 'ph-chart-line-up', render: () => Views.Reports() }
+            },
+
+            init() {
+                this.renderNav();
+                this.navigate('dashboard');
+                
+                // State Listeners for reactivity
+                document.addEventListener('stateChanged', (e) => {
+                    if (this.currentRoute === 'dashboard' && ['jobs', 'expenses'].includes(e.detail.key)) this.refreshView();
+                    if (this.currentRoute === 'tasks' && e.detail.key === 'jobs') this.refreshView();
+                    if (this.currentRoute === 'calendar' && e.detail.key === 'jobs') App.renderCalendar();
+                    if (this.currentRoute === 'inventory' && e.detail.key === 'inventory') this.refreshView();
+                    if (this.currentRoute === 'dailySheet' && e.detail.key === 'currentDailySheet') Views.renderSheetData();
+                });
+            },
+
+            renderNav() {
+                const nav = document.getElementById('nav-container');
+                nav.innerHTML = Object.entries(this.routes).map(([key, route]) => `
+                    <button onclick="UI.navigate('${key}')" id="nav-${key}" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-slate-50 transition-all duration-200 group">
+                        <i class="ph ${route.icon} text-xl group-hover:text-primary-600 transition-colors"></i>
+                        <span class="font-medium text-sm">${route.label}</span>
+                    </button>
+                `).join('');
+            },
+
+            navigate(routeKey) {
+                // 1. Force Save if leaving Daily Sheet
+                if (this.currentRoute === 'dailySheet' && window.App && App.gatherAndSaveSheet) {
+                    App.gatherAndSaveSheet();
+                    // We don't show a toast here to keep transition smooth, but it happens.
+                }
+
+                this.currentRoute = routeKey;
+                
+                // Update Sidebar
+                document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+                const navItem = document.getElementById(`nav-${routeKey}`);
+                if (navItem) navItem.classList.add('active');
+                
+                // Update Title
+                document.getElementById('page-title').textContent = this.routes[routeKey].label;
+                
+                // Render View with Transition
+                this.container.innerHTML = `<div class="animate-slide-up">${this.routes[routeKey].render()}</div>`;
+                
+                // Post-render hooks
+                if (routeKey === 'dashboard') Views.initCharts();
+                if (routeKey === 'calendar') App.renderCalendar();
+                if (routeKey === 'dailySheet') Views.initDailySheetListeners();
+                
+                // Mobile: Close sidebar
+                document.getElementById('sidebar').classList.add('-translate-x-full');
+            },
+
+            refreshView() {
+                // Re-renders current view without full transition
+                if(this.container.firstElementChild) {
+                    this.container.firstElementChild.innerHTML = this.routes[this.currentRoute].render();
+                    if (this.currentRoute === 'dashboard') Views.initCharts();
+                }
+            },
+
+            toggleSidebar() {
+                document.getElementById('sidebar').classList.toggle('-translate-x-full');
+            },
+
+            showToast(title, msg, type = 'success') {
+                const toast = document.getElementById('toast');
+                const icon = document.getElementById('toast-icon');
+                
+                document.getElementById('toast-title').textContent = title;
+                document.getElementById('toast-msg').textContent = msg;
+                
+                icon.className = type === 'success' 
+                    ? 'ph ph-check-circle text-green-400 text-xl' 
+                    : 'ph ph-warning-circle text-red-400 text-xl';
+
+                toast.classList.remove('translate-y-20', 'opacity-0');
+                setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
+            },
+
+            showSyncStatus(msg, type='neutral') {
+                const el = document.getElementById('sync-status');
+                const color = type === 'success' ? 'bg-green-500' : 'bg-yellow-500';
+                el.innerHTML = `<span class="w-2 h-2 rounded-full ${color} animate-pulse"></span> ${msg}`;
+            },
+
+            openModal(html) {
+                const overlay = document.getElementById('modal-overlay');
+                const content = document.getElementById('modal-content');
+                content.innerHTML = html;
+                overlay.classList.remove('hidden');
+                // Trigger reflow
+                void overlay.offsetWidth;
+                overlay.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+            },
+
+            closeModal() {
+                const overlay = document.getElementById('modal-overlay');
+                const content = document.getElementById('modal-content');
+                overlay.classList.add('opacity-0');
+                content.classList.add('scale-95');
+                setTimeout(() => overlay.classList.add('hidden'), 300);
+            }
+        };
+
+        // --- VIEWS (HTML Generators) ---
+        const Views = {
+            Inbox() {
+                const pending = State.requests.filter(r => r.status === 'pending');
+                const history = State.requests.filter(r => r.status !== 'pending');
+                
+                // Dynamic link to the Public Order mode on this same file
+                const publicOrderLink = window.location.href.split('?')[0] + "?mode=public_order";
+
+                return `
+                    <div class="space-y-8">
+                        <div class="bg-gradient-to-r from-violet-600 to-indigo-600 rounded-2xl p-6 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shadow-violet-500/20">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-2xl"><i class="ph ph-share-network"></i></div>
+                                <div>
+                                    <h2 class="text-xl font-bold">Public Order Link</h2>
+                                    <p class="text-violet-100 text-sm opacity-90">Share this link to let customers send orders remotely.</p>
+                                </div>
+                            </div>
+                            <div class="flex bg-white/10 rounded-xl p-1.5 w-full md:w-auto border border-white/20">
+                                <input type="text" value="${publicOrderLink}" readonly class="bg-transparent border-none text-white text-sm px-3 focus:ring-0 w-full md:w-80 font-mono opacity-80 placeholder-white/50" id="share-link-input">
+                                <button onclick="navigator.clipboard.writeText('${publicOrderLink}'); UI.showToast('Link Copied', 'Order form URL copied to clipboard');" class="bg-white text-violet-700 px-5 py-2.5 rounded-lg font-bold text-sm hover:bg-violet-50 transition-colors whitespace-nowrap flex items-center gap-2 shadow-sm">
+                                    <i class="ph ph-copy"></i> Copy Link
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3 class="font-bold text-lg text-slate-800 mb-4 flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-red-500 animate-pulse"></span> 
+                                Pending Requests (${pending.length})
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                ${pending.length === 0 ? `<div class="col-span-3 text-slate-400 text-sm italic">No pending orders.</div>` : ''}
+                                ${pending.map(req => `
+                                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-all relative overflow-hidden">
+                                        <div class="absolute top-0 left-0 w-1 h-full bg-orange-500"></div>
+                                        <div class="flex justify-between items-start mb-4">
+                                            <div>
+                                                <h4 class="font-bold text-slate-800">${req.customerName}</h4>
+                                                <a href="tel:${req.phone}" class="text-xs text-primary-600 font-bold hover:underline">${req.phone}</a>
+                                            </div>
+                                            <span class="text-[10px] font-bold uppercase text-slate-400 bg-slate-100 px-2 py-1 rounded">
+                                                ${req.createdAt ? new Date(req.createdAt.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Just now'}
+                                            </span>
+                                        </div>
+                                        ${req.audioUrl ? `<div class="mb-4 bg-slate-50 p-2 rounded-lg"><p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Voice Note</p><audio controls src="${req.audioUrl}" class="w-full h-8"></audio></div>` : ''}
+                                        <p class="text-sm text-slate-600 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-50 italic">"${req.details || 'No text details provided.'}"</p>
+                                        ${req.attachmentUrls && req.attachmentUrls.length > 0 ? `<div class="mb-6 flex flex-wrap gap-2">${req.attachmentUrls.map(f => `<a href="${f.url}" target="_blank" class="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors"><i class="ph ph-file-pdf"></i> ${f.name.substring(0, 15)}...</a>`).join('')}</div>` : ''}
+                                        <div class="grid grid-cols-2 gap-3 mt-auto">
+                                            <button onclick="App.dismissRequest('${req.id}')" class="px-4 py-2 border border-slate-200 text-slate-500 font-bold rounded-xl hover:bg-slate-50 text-xs transition-colors">Archive</button>
+                                            <button onclick='App.acceptRequest(${JSON.stringify(req).replace(/'/g, "&apos;")})' class="px-4 py-2 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-900 text-xs transition-colors flex items-center justify-center gap-2"><i class="ph ph-check-circle"></i> Accept Job</button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div class="opacity-60 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500">
+                            <h3 class="font-bold text-sm text-slate-500 uppercase mb-4">History</h3>
+                            <div class="space-y-2">
+                                ${history.slice(0, 5).map(req => `<div class="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-lg"><span class="text-sm font-bold text-slate-700">${req.customerName}</span><span class="text-xs font-bold px-2 py-1 rounded ${req.status === 'accepted' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}">${req.status}</span></div>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            Calendar() {
+                return `
+                    <style>
+                        /* iPhone Calendar Theme Styles */
+                        .fc-theme-standard td, .fc-theme-standard th { border: none !important; }
+                        .fc-scrollgrid { border: none !important; }
+                        .fc-col-header-cell-cushion { 
+                            color: #9ca3af; 
+                            font-weight: 700; 
+                            text-transform: uppercase; 
+                            font-size: 0.7rem; 
+                            letter-spacing: 0.05em;
+                            padding-bottom: 10px !important;
+                        }
+                        .fc-daygrid-day-top { flex-direction: row; justify-content: center; margin-top: 4px; }
+                        .fc-daygrid-day-number { 
+                            color: #1f2937; 
+                            font-weight: 600; 
+                            font-size: 0.9rem;
+                            width: 32px;
+                            height: 32px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            border-radius: 50%;
+                            z-index: 2;
+                        }
+                        .fc-day-today .fc-daygrid-day-number { 
+                            background-color: #ef4444 !important; 
+                            color: white !important; 
+                        }
+                        .fc-day-today { background: transparent !important; }
+                        .fc-daygrid-day-events { margin-top: 2px; }
+                        .fc-event { 
+                            border-radius: 6px; 
+                            font-size: 0.7rem; 
+                            border: none; 
+                            padding: 1px 4px;
+                            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+                        }
+                        .fc-toolbar-title { 
+                            font-size: 1.5rem !important; 
+                            font-weight: 800 !important; 
+                            color: #ef4444; 
+                        }
+                        .fc-button-primary { 
+                            background: white !important; 
+                            border: 1px solid #e5e7eb !important; 
+                            color: #374151 !important; 
+                            font-weight: 600 !important; 
+                            box-shadow: none !important;
+                            border-radius: 8px !important;
+                        }
+                        .fc-button-primary:hover { background: #f9fafb !important; }
+                        .fc-button-active { background: #ef4444 !important; color: white !important; border-color: #ef4444 !important; }
+                        .fc-day-other .fc-daygrid-day-number { opacity: 0.3; }
+                    </style>
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 h-full flex flex-col">
+                        <div class="flex flex-wrap gap-4 mb-4 text-xs font-bold text-slate-600 border-b border-slate-100 pb-4">
+                            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-800"></span> Overdue</div>
+                            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-600 animate-pulse"></span> Urgent (< 2 Days)</div>
+                            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-orange-400"></span> Warning (< 5 Days)</div>
+                            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-blue-500"></span> Normal</div>
+                            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500"></span> Completed</div>
+                        </div>
+                        
+                        <div id="calendar-wrapper" class="flex-1 bg-white font-sans text-sm"></div>
+                    </div>
+                `;
+            },
+
+            Dashboard() {
+                const totalJobs = State.jobs.length;
+                const activeJobs = State.jobs.filter(j => j.status === 'in_progress').length;
+                const revenue = State.jobs.reduce((acc, j) => acc + (j.price || 0) - (j.discount || 0), 0);
+                
+                return `
+                    <div class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="card-hover bg-white p-6 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden">
+                                <div class="absolute top-0 right-0 p-4 opacity-10"><i class="ph ph-briefcase text-6xl text-primary-600"></i></div>
+                                <p class="text-slate-500 text-sm font-medium mb-1">Active Jobs</p>
+                                <h3 class="text-3xl font-bold text-slate-800">${activeJobs}</h3>
+                                <div class="mt-4 flex gap-2">
+                                    <button onclick="UI.navigate('newJob')" class="text-xs bg-primary-50 text-primary-700 px-3 py-1 rounded-full font-bold">+ New</button>
+                                </div>
+                            </div>
+                            <div class="card-hover bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                                <p class="text-slate-500 text-sm font-medium mb-1">Total Revenue</p>
+                                <h3 class="text-3xl font-bold text-green-600">Rs. ${Utils.formatMoney(revenue)}</h3>
+                            </div>
+                            <div class="card-hover bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                                <p class="text-slate-500 text-sm font-medium mb-1">Total Orders</p>
+                                <h3 class="text-3xl font-bold text-slate-800">${totalJobs}</h3>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                                <h3 class="font-bold text-lg mb-4">Recent Jobs</h3>
+                                <div class="space-y-3">
+                                    ${State.jobs.slice(0, 5).map(job => `
+                                        <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center font-bold text-primary-600">
+                                                    ${job.customer.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <p class="font-bold text-sm text-slate-800">${job.customer}</p>
+                                                    <p class="text-xs text-slate-500">${job.details.substring(0, 20)}...</p>
+                                                </div>
+                                            </div>
+                                            <span class="text-xs font-bold px-2 py-1 rounded ${Utils.getStatusColor(job.status)}">
+                                                ${Utils.formatStatus(job.status)}
+                                            </span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+
+                            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                                <h3 class="font-bold text-lg mb-4">Revenue Trend</h3>
+                                <canvas id="dashboardChart" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            NewJob() {
+                return `
+                    <div class="max-w-5xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
+                        <form id="new-job-form" onsubmit="App.submitJob(event)" class="space-y-8">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Customer Name</label>
+                                    <input type="text" name="customer" required class="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:outline-none transition-all">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Phone Number</label>
+                                    <input type="tel" name="phone" required class="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:outline-none transition-all">
+                                </div>
+                            </div>
+
+                            <div class="border-t border-slate-100 pt-6">
+                                <h3 class="font-bold text-slate-800 text-lg mb-6 flex items-center gap-2">
+                                    <i class="ph ph-list-checks text-primary-600"></i> Job Requirements
+                                </h3>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                    
+                                    <div>
+                                        <h4 class="font-bold text-xs text-primary-600 uppercase tracking-wider mb-3 border-b border-slate-100 pb-2">Printing & Finishing</h4>
+                                        <div class="space-y-2">
+                                            ${['Booklets', 'Brochures / Flyers', 'Envelopes', 'Invitation Cards', 'Laminating', 'Letterheads', 'Notepads', 'Photocopy', 'Posters / Banners', 'Printing', 'Scanning'].map(i => `
+                                                <label class="flex items-center gap-2 group cursor-pointer">
+                                                    <input type="checkbox" name="job_details_check" value="${i}" class="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 transition-all">
+                                                    <span class="text-sm text-slate-600 group-hover:text-primary-700 transition-colors">${i}</span>
+                                                </label>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <h4 class="font-bold text-xs text-primary-600 uppercase tracking-wider mb-3 border-b border-slate-100 pb-2">Custom Product Printing</h4>
+                                        <div class="space-y-2">
+                                            ${['Badge/Button Printing', 'Calendar Printing', 'Cap Printing', 'ID Card Printing', 'Key Tag Printing', 'Mobile Cover Printing', 'Mug Printing', 'T-shirt Printing'].map(i => `
+                                                <label class="flex items-center gap-2 group cursor-pointer">
+                                                    <input type="checkbox" name="job_details_check" value="${i}" class="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 transition-all">
+                                                    <span class="text-sm text-slate-600 group-hover:text-primary-700 transition-colors">${i}</span>
+                                                </label>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <h4 class="font-bold text-xs text-primary-600 uppercase tracking-wider mb-3 border-b border-slate-100 pb-2">Office & Business</h4>
+                                        <div class="space-y-2">
+                                            ${['Display Boards', 'Invoice Books', 'Menus', 'Presentation Folders', 'Receipt Books', 'Roll-up Banners', 'Wall Decals', 'Window Stickers'].map(i => `
+                                                <label class="flex items-center gap-2 group cursor-pointer">
+                                                    <input type="checkbox" name="job_details_check" value="${i}" class="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 transition-all">
+                                                    <span class="text-sm text-slate-600 group-hover:text-primary-700 transition-colors">${i}</span>
+                                                </label>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <h4 class="font-bold text-xs text-primary-600 uppercase tracking-wider mb-3 border-b border-slate-100 pb-2">Binding & Finishing</h4>
+                                        <div class="space-y-2">
+                                            ${['Die Cutting', 'Saddle Stitching', 'Spiral Binding', 'Thermal Binding', 'Wire Binding'].map(i => `
+                                                <label class="flex items-center gap-2 group cursor-pointer">
+                                                    <input type="checkbox" name="job_details_check" value="${i}" class="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 transition-all">
+                                                    <span class="text-sm text-slate-600 group-hover:text-primary-700 transition-colors">${i}</span>
+                                                </label>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <h4 class="font-bold text-xs text-primary-600 uppercase tracking-wider mb-3 border-b border-slate-100 pb-2">Design & Digital</h4>
+                                        <div class="space-y-2">
+                                            ${['Certificates', 'Graphic Design', 'Letter head creation', 'Logo Design', 'Resume/CV Design'].map(i => `
+                                                <label class="flex items-center gap-2 group cursor-pointer">
+                                                    <input type="checkbox" name="job_details_check" value="${i}" class="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 transition-all">
+                                                    <span class="text-sm text-slate-600 group-hover:text-primary-700 transition-colors">${i}</span>
+                                                </label>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-8">
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Other / Specific Instructions</label>
+                                    <textarea name="job_details_other" rows="2" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:outline-none transition-all text-sm" placeholder="Any specific details not listed above..."></textarea>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-slate-100">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Price (Rs.)</label>
+                                    <input type="number" name="price" required class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:outline-none transition-all">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Discount (Rs.)</label>
+                                    <input type="number" name="discount" value="0" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:outline-none transition-all">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Deadline</label>
+                                    <input type="date" name="deadline" required class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:outline-none transition-all">
+                                </div>
+                            </div>
+
+                            <div class="pt-4 flex justify-end">
+                                <button type="submit" class="bg-primary-600 text-white px-10 py-4 rounded-xl font-bold hover:bg-primary-700 transition-all shadow-xl shadow-primary-500/30 transform hover:-translate-y-1 flex items-center gap-2">
+                                    <i class="ph ph-paper-plane-right text-lg"></i> Create Job Order
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                `;
+            },
+
+            Tasks() {
+                return `
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <div class="p-4 border-b border-slate-100 flex gap-4">
+                            <input type="text" placeholder="Search orders..." onkeyup="App.filterTasks(this.value)" class="flex-1 p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500">
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-slate-50 text-slate-500 uppercase font-bold text-xs">
+                                    <tr>
+                                        <th class="p-4">Customer</th>
+                                        <th class="p-4">Details</th>
+                                        <th class="p-4">Price</th>
+                                        <th class="p-4">Deadline</th>
+                                        <th class="p-4">Status</th>
+                                        <th class="p-4">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tasks-table-body" class="divide-y divide-slate-100">
+                                    ${State.jobs.map(job => `
+                                        <tr class="hover:bg-slate-50 transition-colors">
+                                            <td class="p-4 font-bold text-slate-700">${job.customer}<br><span class="text-xs font-normal text-slate-400">${job.phone}</span></td>
+                                            <td class="p-4 max-w-xs truncate">${job.details}</td>
+                                            <td class="p-4 font-mono">Rs. ${Utils.formatMoney(job.price - (job.discount || 0))}</td>
+                                            <td class="p-4 ${Utils.getDeadlineClass(job.deadline)}">${job.deadline}</td>
+                                            <td class="p-4">
+                                                <select onchange="App.updateStatus('${job.id}', this.value)" class="bg-transparent font-bold text-xs cursor-pointer focus:outline-none ${Utils.getStatusColor(job.status)} px-2 py-1 rounded">
+                                                    <option value="in_progress" ${job.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
+                                                    <option value="completed" ${job.status === 'completed' ? 'selected' : ''}>Completed</option>
+                                                    <option value="cancelled" ${job.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+                                                </select>
+                                            </td>
+                                            <td class="p-4">
+                                                <button onclick="App.deleteJob('${job.id}')" class="text-red-400 hover:text-red-600 transition-colors"><i class="ph ph-trash text-lg"></i></button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            },
+
+            DailySheet() {
+                const today = new Date().toISOString().split('T')[0];
+                return `
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+                        <div class="lg:col-span-2 space-y-6 overflow-y-auto pr-2">
+                            
+                            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between sticky top-0 z-10">
+                                <div class="flex items-center gap-2">
+                                    <label class="font-bold text-sm">Date:</label>
+                                    <input type="date" id="sheet-date" value="${today}" onchange="App.loadSheetForDate(this.value)" class="bg-slate-50 border border-slate-200 rounded-lg p-1 text-sm">
+                                </div>
+                                <div class="flex items-center gap-4">
+                                    <div class="text-xs font-bold text-slate-500">Total Customers: <span id="dsp-total-customers" class="text-slate-800 text-sm">0</span></div>
+                                    <div class="text-xs font-bold bg-primary-50 text-primary-700 px-3 py-1 rounded-full animate-pulse" id="auto-save-indicator">Ready</div>
+                                </div>
+                            </div>
+
+                            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                                <div class="bg-slate-50 p-2 border-b border-slate-100 flex justify-between items-center">
+                                    <div class="flex bg-slate-200 p-1 rounded-lg">
+                                        <button onclick="Views.switchSheetPage(1)" id="btn-page-1" class="px-3 py-1 text-xs font-bold rounded-md bg-white text-primary-700 shadow-sm transition-all">Page 1 (1-50)</button>
+                                        <button onclick="Views.switchSheetPage(2)" id="btn-page-2" class="px-3 py-1 text-xs font-bold rounded-md text-slate-500 hover:bg-white/50 transition-all">Page 2 (51-100)</button>
+                                    </div>
+                                    <span class="text-xs font-bold uppercase text-slate-400">Sales Line Items</span>
+                                </div>
+                                <div id="sales-rows-container" class="p-2 space-y-1">
+                                    </div>
+                            </div>
+
+                            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                                <div class="bg-slate-50 p-3 border-b border-slate-100 font-bold text-xs uppercase text-slate-500">Daily Expenses</div>
+                                <div id="expenses-rows-container" class="p-2 space-y-2">
+                                    </div>
+                                <div class="p-2 bg-slate-50 border-t border-slate-100 text-center">
+                                    <button onclick="Views.addExpenseRow()" class="text-xs font-bold text-red-600 hover:text-red-800">+ Add Expense</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-6">
+                            <div class="bg-primary-700 text-white p-6 rounded-2xl shadow-xl">
+                                <h3 class="font-bold text-lg mb-4 opacity-90">Daily Summary</h3>
+                                <div class="space-y-3 text-sm">
+                                    <div class="flex justify-between items-center">
+                                        <span class="opacity-80">Total Sales</span>
+                                        <span class="font-bold text-3xl tracking-tight transition-transform duration-200 origin-right" id="dsp-total-sales">Rs. 0</span>
+                                    </div>
+                                    <div class="h-px bg-white/10 my-2"></div>
+                                    <div class="flex justify-between text-green-200"><span>Petty Cash (In)</span><span><input type="number" id="dsp-petty-cash" oninput="App.calculateSheetTotals()" class="w-20 bg-white/20 border-none rounded p-1 text-right text-white placeholder-white/50 text-sm focus:ring-0"></span></div>
+                                    <div class="flex justify-between text-red-200"><span>Expenses</span><span id="dsp-total-expenses">- Rs. 0</span></div>
+                                    <div class="flex justify-between text-blue-200"><span>Banked (B)</span><span><input type="number" id="dsp-banked" oninput="App.calculateSheetTotals()" class="w-20 bg-white/20 border-none rounded p-1 text-right text-white placeholder-white/50 text-sm focus:ring-0"></span></div>
+                                    <div class="h-px bg-white/20 my-2"></div>
+                                    <div class="flex justify-between text-lg font-bold"><span>Cash In Hand</span><span id="dsp-cash-hand">Rs. 0</span></div>
+                                </div>
+                            </div>
+
+                            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                                <h3 class="font-bold text-slate-700 mb-4 text-sm uppercase">Cash Counter</h3>
+                                <div class="space-y-2" id="cash-counter-rows">
+                                    </div>
+                                <div class="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center">
+                                    <div class="text-xs font-bold text-slate-400">Total Counted</div>
+                                    <div class="text-xl font-bold text-slate-800" id="cc-total">Rs. 0</div>
+                                </div>
+                                <div id="cc-variance" class="mt-2 text-center text-xl font-bold p-2 rounded bg-slate-100 text-slate-500">
+                                    Variance: Rs. 0
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            Inventory() {
+                // Calculate Stats
+                const totalItems = State.inventory.length;
+                const lowStock = State.inventory.filter(i => i.qty <= (i.minLevel || 5)).length;
+                const outOfStock = State.inventory.filter(i => i.qty === 0).length;
+
+                return `
+                    <div class="space-y-6 h-full flex flex-col">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl"><i class="ph ph-package"></i></div>
+                                <div><p class="text-xs text-slate-500 font-bold uppercase">Total Items</p><h4 class="text-2xl font-bold text-slate-800">${totalItems}</h4></div>
+                            </div>
+                            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center text-xl"><i class="ph ph-warning"></i></div>
+                                <div><p class="text-xs text-slate-500 font-bold uppercase">Low Stock Alerts</p><h4 class="text-2xl font-bold text-slate-800">${lowStock}</h4></div>
+                            </div>
+                            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-full bg-red-50 text-red-600 flex items-center justify-center text-xl"><i class="ph ph-x-circle"></i></div>
+                                <div><p class="text-xs text-slate-500 font-bold uppercase">Out of Stock</p><h4 class="text-2xl font-bold text-slate-800">${outOfStock}</h4></div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 flex-1 flex flex-col overflow-hidden">
+                            <div class="p-4 border-b border-slate-100 flex flex-wrap gap-4 items-center justify-between">
+                                <div class="flex gap-2 flex-1">
+                                    <div class="relative flex-1 max-w-xs">
+                                        <i class="ph ph-magnifying-glass absolute left-3 top-2.5 text-slate-400"></i>
+                                        <input type="text" placeholder="Search items..." onkeyup="App.filterInventory(this.value)" class="w-full pl-9 p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500">
+                                    </div>
+                                    <select onchange="App.filterInventoryByCategory(this.value)" class="p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-primary-500 text-slate-600 font-medium">
+                                        <option value="all">All Categories</option>
+                                        <option value="Paper">Paper Stocks</option>
+                                        <option value="Ink">Ink & Toner</option>
+                                        <option value="Binding">Binding Materials</option>
+                                        <option value="Merch">Merchandise</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                <button onclick="App.openInventoryModal()" class="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary-700 transition-all flex items-center gap-2 shadow-lg shadow-primary-500/20">
+                                    <i class="ph ph-plus-circle text-lg"></i> Add New Item
+                                </button>
+                            </div>
+
+                            <div class="overflow-y-auto flex-1">
+                                <table class="w-full text-sm text-left">
+                                    <thead class="bg-slate-50 text-slate-500 uppercase font-bold text-xs sticky top-0 z-10">
+                                        <tr>
+                                            <th class="p-4 pl-6">Item Name</th>
+                                            <th class="p-4">Category</th>
+                                            <th class="p-4 text-center">Stock Level</th>
+                                            <th class="p-4">Status</th>
+                                            <th class="p-4 text-right pr-6">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="inventory-table-body" class="divide-y divide-slate-100">
+                                        ${State.inventory.length ? State.inventory.map(item => {
+                                            const min = item.minLevel || 5;
+                                            const status = item.qty === 0 ? 'Out of Stock' : (item.qty <= min ? 'Low Stock' : 'In Stock');
+                                            const statusColor = item.qty === 0 ? 'bg-red-100 text-red-700' : (item.qty <= min ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700');
+                                            const catColors = { 'Paper': 'text-blue-600 bg-blue-50', 'Ink': 'text-purple-600 bg-purple-50', 'Binding': 'text-orange-600 bg-orange-50', 'Merch': 'text-pink-600 bg-pink-50', 'Other': 'text-slate-600 bg-slate-50' };
+                                            
+                                            return `
+                                            <tr class="hover:bg-slate-50 transition-colors group inv-row" data-cat="${item.category || 'Other'}">
+                                                <td class="p-4 pl-6">
+                                                    <div class="font-bold text-slate-700">${item.name}</div>
+                                                    <div class="text-xs text-slate-400">${item.unit || 'Units'}</div>
+                                                </td>
+                                                <td class="p-4">
+                                                    <span class="px-2 py-1 rounded text-xs font-bold ${catColors[item.category] || catColors['Other']}">${item.category || 'Other'}</span>
+                                                </td>
+                                                <td class="p-4">
+                                                    <div class="flex items-center justify-center gap-2">
+                                                        <button onclick="App.updateStock('${item.id}', -1)" class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-500 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-colors font-bold text-lg">-</button>
+                                                        <input type="number" value="${item.qty}" onchange="App.setExactStock('${item.id}', this.value)" class="w-16 text-center font-mono font-bold bg-transparent border-b border-transparent hover:border-slate-300 focus:border-primary-500 focus:outline-none">
+                                                        <button onclick="App.updateStock('${item.id}', 1)" class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-500 hover:bg-green-50 hover:text-green-500 hover:border-green-200 transition-colors font-bold text-lg">+</button>
+                                                    </div>
+                                                </td>
+                                                <td class="p-4">
+                                                    <span class="px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 w-fit ${statusColor}">
+                                                        <span class="w-1.5 h-1.5 rounded-full bg-current"></span> ${status}
+                                                    </span>
+                                                </td>
+                                                <td class="p-4 pr-6 text-right">
+                                                    <div class="opacity-0 group-hover:opacity-100 transition-opacity flex justify-end gap-2">
+                                                        <button onclick='App.openInventoryModal(${JSON.stringify(item).replace(/'/g, "&apos;")})' class="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"><i class="ph ph-pencil-simple text-lg"></i></button>
+                                                        <button onclick="App.deleteInventory('${item.id}')" class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><i class="ph ph-trash text-lg"></i></button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        `}).join('') : `<tr><td colspan="5" class="p-10 text-center text-slate-400">No items found. Add your first inventory item.</td></tr>`}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+            
+            // --- Helper Methods for Views ---
+            initCharts() {
+                const ctx = document.getElementById('dashboardChart');
+                if(!ctx) return;
+                
+                const data = { labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'], datasets: [{ label: 'Revenue', data: [12000, 19000, 3000, 5000, 2000, 30000], borderColor: '#7c3aed', tension: 0.4, fill: true, backgroundColor: 'rgba(124, 58, 237, 0.1)' }] };
+                new Chart(ctx, { type: 'line', data: data, options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } } } });
+            },
+
+            initDailySheetListeners() {
+                // Generate 100 Rows Upfront
+                const container = document.getElementById('sales-rows-container');
+                container.innerHTML = '';
+                
+                for(let i = 1; i <= 100; i++) {
+                    const pageClass = i <= 50 ? 'sheet-page-1' : 'sheet-page-2';
+                    const displayStyle = i <= 50 ? '' : 'display:none';
+                    
+                    const div = document.createElement('div');
+                    div.className = `grid grid-cols-12 gap-2 items-center group ${pageClass}`;
+                    div.style.cssText = displayStyle;
+                    
+                    div.innerHTML = `
+                        <div class="col-span-1 text-center text-xs font-bold text-slate-300 select-none">${i}</div>
+                        <div class="col-span-5"><input type="text" id="desc-${i}" placeholder="Description" class="sheet-input w-full p-2 border border-slate-200 rounded text-sm focus:border-primary-500 outline-none bg-transparent" oninput="App.debouncedSaveSheet()"></div>
+                        <div class="col-span-3"><input type="number" id="amt-${i}" placeholder="Amount" class="sheet-input-amt w-full p-2 border border-slate-200 rounded text-sm focus:border-primary-500 outline-none font-mono text-right" oninput="App.calculateSheetTotals()"></div>
+                        <div class="col-span-3 flex gap-1 justify-center">
+                            <label class="cursor-pointer"><input type="radio" name="pay-${i}" value="cash" class="peer sr-only" checked onchange="App.calculateSheetTotals()"><span class="block w-6 h-6 rounded bg-slate-100 peer-checked:bg-green-500 peer-checked:text-white text-center text-xs leading-6 font-bold text-slate-400 transition-colors">C</span></label>
+                            <label class="cursor-pointer"><input type="radio" name="pay-${i}" value="credit" class="peer sr-only" onchange="App.calculateSheetTotals()"><span class="block w-6 h-6 rounded bg-slate-100 peer-checked:bg-yellow-500 peer-checked:text-white text-center text-xs leading-6 font-bold text-slate-400 transition-colors">R</span></label>
+                            <label class="cursor-pointer"><input type="radio" name="pay-${i}" value="bank" class="peer sr-only" onchange="App.calculateSheetTotals()"><span class="block w-6 h-6 rounded bg-slate-100 peer-checked:bg-blue-500 peer-checked:text-white text-center text-xs leading-6 font-bold text-slate-400 transition-colors">B</span></label>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                }
+
+                // Populate Cash Counter
+                const ccContainer = document.getElementById('cash-counter-rows');
+                const denoms = [5000, 1000, 500, 100, 50, 20, 10];
+                const savedCounts = State.currentDailySheet?.cashCounts || {};
+
+                ccContainer.innerHTML = denoms.map(d => `
+                    <div class="flex items-center gap-4">
+                        <div class="w-16 font-bold text-slate-500 text-xs">Rs. ${d}</div>
+                        <input type="number" data-denom="${d}" value="${savedCounts[d] || ''}" oninput="App.calculateCashCounter()" class="cc-input flex-1 bg-slate-50 border border-slate-200 rounded p-1 text-center font-mono text-sm">
+                        <div class="w-20 text-right font-mono text-sm font-bold text-slate-700" id="cc-sum-${d}">0</div>
+                    </div>
+                `).join('');
+
+                // Initial Data Population
+                this.renderSheetData();
+            },
+
+            switchSheetPage(pageNum) {
+                document.querySelectorAll('.sheet-page-1').forEach(el => el.style.display = pageNum === 1 ? 'grid' : 'none');
+                document.querySelectorAll('.sheet-page-2').forEach(el => el.style.display = pageNum === 2 ? 'grid' : 'none');
+                
+                const btn1 = document.getElementById('btn-page-1');
+                const btn2 = document.getElementById('btn-page-2');
+                
+                if(pageNum === 1) {
+                    btn1.className = "px-3 py-1 text-xs font-bold rounded-md bg-white text-primary-700 shadow-sm transition-all";
+                    btn2.className = "px-3 py-1 text-xs font-bold rounded-md text-slate-500 hover:bg-white/50 transition-all";
+                } else {
+                    btn1.className = "px-3 py-1 text-xs font-bold rounded-md text-slate-500 hover:bg-white/50 transition-all";
+                    btn2.className = "px-3 py-1 text-xs font-bold rounded-md bg-white text-primary-700 shadow-sm transition-all";
+                }
+            },
+
+            addExpenseRow(desc='', amount='') { 
+                const container = document.getElementById('expenses-rows-container');
+                const div = document.createElement('div');
+                div.className = "grid grid-cols-12 gap-2 items-center animate-fade-in";
+                div.innerHTML = `
+                    <div class="col-span-8"><input type="text" placeholder="Expense Description" value="${desc}" class="exp-desc w-full p-2 border border-slate-200 rounded text-sm focus:border-red-500 outline-none" oninput="App.debouncedSaveSheet()"></div>
+                    <div class="col-span-3"><input type="number" placeholder="Amount" value="${amount}" class="exp-amt w-full p-2 border border-slate-200 rounded text-sm focus:border-red-500 outline-none font-mono text-right" oninput="App.calculateSheetTotals()"></div>
+                    <div class="col-span-1 text-center"><button onclick="this.parentElement.parentElement.remove(); App.calculateSheetTotals()" class="text-red-400 hover:text-red-600"><i class="ph ph-trash"></i></button></div>
+                `;
+                container.appendChild(div);
+            },
+            
+            // CRITICAL: This fills the 100 rows with data when date changes
+            renderSheetData() {
+                const data = State.currentDailySheet || {};
+                
+                // 1. Populate Summary
+                if(document.getElementById('dsp-banked')) {
+                    document.getElementById('dsp-banked').value = data.banked || 0;
+                    document.getElementById('dsp-petty-cash').value = data.pettyCash || 0;
+                }
+
+                // 2. Populate Sales (Map to indices)
+                const sales = data.sales || [];
+                for(let i = 1; i <= 100; i++) {
+                    const rowData = sales[i-1] || {}; // Arrays are 0-indexed, UI is 1-indexed
+                    
+                    const descInput = document.getElementById(`desc-${i}`);
+                    const amtInput = document.getElementById(`amt-${i}`);
+                    
+                    if(descInput) descInput.value = rowData.desc || '';
+                    if(amtInput) amtInput.value = rowData.amount || '';
+                    
+                    const payType = rowData.type || 'cash';
+                    const radio = document.querySelector(`input[name="pay-${i}"][value="${payType}"]`);
+                    if(radio) radio.checked = true;
+                }
+
+                // 3. Populate Expenses
+                const expContainer = document.getElementById('expenses-rows-container');
+                if(expContainer) {
+                    expContainer.innerHTML = '';
+                    const expenses = data.expenses || [];
+                    if(expenses.length > 0) {
+                        expenses.forEach(e => this.addExpenseRow(e.desc, e.amount));
+                    } else {
+                        this.addExpenseRow(); // Add one empty row
+                    }
+                }
+
+                // 4. Populate Cash Counter (Reset & Fill)
+                const cashCounts = data.cashCounts || {};
+                document.querySelectorAll('.cc-input').forEach(input => {
+                    const denom = input.dataset.denom;
+                    input.value = cashCounts[denom] || '';
+                });
+                
+                // 5. Recalculate everything
+                // FIXED: Pass false to prevent auto-saving during initial load
+                App.calculateSheetTotals(false);
+            }
+        };
+
+        // --- APP LOGIC ---
+        const App = {
+            init() {
+                DB.init();
+                
+                // CHECK: Is this the Public Order Page?
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('mode') === 'public_order') {
+                    this.renderPublicOrder();
+                    return; // Stop loading the Manager Dashboard
+                }
+
+                UI.init();
+                // Set Date for Daily Sheet
+                setTimeout(() => this.loadSheetForDate(new Date().toISOString().split('T')[0]), 500);
+            },
+            
+            refresh() { location.reload(); },
+
+            // --- PUBLIC ORDER LOGIC ---
+            mediaRecorder: null,
+            audioChunks: [],
+            audioBlob: null,
+
+            renderPublicOrder() {
+                document.title = "Send Order | INKSPIRE";
+                document.body.innerHTML = `
+                    <div class="bg-slate-50 text-slate-800 min-h-screen flex items-center justify-center p-4 font-sans">
+                        <div class="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
+                            <div class="bg-violet-600 p-6 text-white text-center">
+                                <i class="ph ph-paper-plane-tilt text-4xl mb-2"></i>
+                                <h1 class="text-xl font-bold">Send New Order</h1>
+                                <p class="text-violet-200 text-sm">Upload files or record a voice note</p>
+                            </div>
+                            <form id="orderForm" onsubmit="App.submitPublicOrder(event)" class="p-6 space-y-5">
+                                <div class="space-y-3">
+                                    <input type="text" id="name" required placeholder="Your Name" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-violet-500 outline-none transition-all">
+                                    <input type="tel" id="phone" required placeholder="Phone Number" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-violet-500 outline-none transition-all">
+                                </div>
+                                <div class="border border-dashed border-slate-300 rounded-xl p-4 text-center space-y-2">
+                                    <p class="text-xs font-bold text-slate-400 uppercase">Voice Note</p>
+                                    <div class="flex items-center justify-center gap-4">
+                                        <button type="button" id="recordBtn" onclick="App.toggleRecording()" class="w-12 h-12 rounded-full bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center text-xl transition-all"><i class="ph ph-microphone"></i></button>
+                                        <div id="audioPreview" class="hidden">
+                                            <audio id="audioPlayer" controls class="h-8 w-40"></audio>
+                                            <button type="button" onclick="App.clearAudio()" class="text-xs text-red-500 font-bold mt-1">Delete</button>
+                                        </div>
+                                    </div>
+                                    <p id="recordStatus" class="text-xs text-slate-400">Tap to record</p>
+                                </div>
+                                <div>
+                                    <label class="block w-full p-4 border-2 border-dashed border-slate-200 rounded-xl hover:border-violet-400 cursor-pointer transition-all text-center">
+                                        <i class="ph ph-upload-simple text-2xl text-slate-400 mb-1"></i>
+                                        <span class="block text-sm font-bold text-slate-600">Tap to upload files</span>
+                                        <span class="block text-xs text-slate-400">PDF, JPG, PNG (Max 10MB)</span>
+                                        <input type="file" id="files" multiple class="hidden" onchange="document.getElementById('fileList').textContent = this.files.length + ' files selected'">
+                                    </label>
+                                    <div id="fileList" class="mt-2 text-xs text-slate-500 font-medium text-center"></div>
+                                </div>
+                                <textarea id="details" rows="3" placeholder="Type instructions here..." class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-violet-500 outline-none transition-all"></textarea>
+                                <button type="submit" id="submitBtn" class="w-full bg-violet-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-violet-700 transition-all shadow-lg shadow-violet-500/30">Send Order</button>
+                            </form>
+                        </div>
+                        <div id="loader" class="fixed inset-0 bg-white/90 hidden flex-col items-center justify-center z-50">
+                            <div class="w-12 h-12 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin mb-4"></div>
+                            <p class="font-bold text-slate-600">Uploading files...</p>
+                        </div>
+                    </div>
+                `;
+            },
+
+            async toggleRecording() {
+                const btn = document.getElementById('recordBtn');
+                const status = document.getElementById('recordStatus');
+                if (!App.mediaRecorder || App.mediaRecorder.state === "inactive") {
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        App.mediaRecorder = new MediaRecorder(stream);
+                        App.mediaRecorder.start();
+                        btn.classList.add('bg-red-500', 'text-white', 'animate-pulse');
+                        btn.classList.remove('bg-red-50', 'text-red-500');
+                        btn.innerHTML = '<i class="ph ph-stop"></i>';
+                        status.textContent = "Recording...";
+                        App.audioChunks = [];
+                        App.mediaRecorder.ondataavailable = e => App.audioChunks.push(e.data);
+                        App.mediaRecorder.onstop = () => {
+                            App.audioBlob = new Blob(App.audioChunks, { type: 'audio/mp3' });
+                            document.getElementById('audioPlayer').src = URL.createObjectURL(App.audioBlob);
+                            document.getElementById('audioPreview').classList.remove('hidden');
+                            document.getElementById('recordBtn').classList.add('hidden');
+                            status.textContent = "Recorded";
+                        };
+                    } catch (err) { alert("Microphone access denied"); }
+                } else {
+                    App.mediaRecorder.stop();
+                    // Properly release the microphone streams to prevent lockups
+                    App.mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                }
+            },
+
+            clearAudio() {
+                App.audioBlob = null;
+                document.getElementById('audioPreview').classList.add('hidden');
+                document.getElementById('recordBtn').classList.remove('hidden');
+                document.getElementById('recordBtn').innerHTML = '<i class="ph ph-microphone"></i>';
+                document.getElementById('recordStatus').textContent = "Tap to record";
+            },
+
+            async submitPublicOrder(e) {
+                e.preventDefault();
+                const loader = document.getElementById('loader');
+                loader.classList.remove('hidden');
+                
+                try {
+                    // 1. CRITICAL FIX: Ensure User is Connected before uploading
+                    if (!DB.auth.currentUser) {
+                        console.log("Waiting for connection...");
+                        await DB.auth.signInAnonymously();
+                    }
+
+                    const timestamp = Date.now();
+                    const name = document.getElementById('name').value;
+                    let audioUrl = null;
+                    let fileUrls = [];
+
+                    // Clean the name to prevent Firebase Storage path breaking
+                    const safeName = name.replace(/[^a-zA-Z0-9.-]/g, '_');
+
+                    // 2. Upload Audio using explicit App context
+                    if (App.audioBlob) {
+                        try {
+                            const audioRef = DB.storage.ref(`orders/${timestamp}_${safeName}/voice_note.mp3`);
+                            await audioRef.put(App.audioBlob);
+                            audioUrl = await audioRef.getDownloadURL();
+                        } catch(err) { console.error("Audio Upload Failed", err); }
+                    }
+
+                    // 3. Upload Files
+                    const files = document.getElementById('files').files;
+                    for (let i = 0; i < files.length; i++) {
+                        try {
+                            const file = files[i];
+                            // Clean filename to prevent storage errors
+                            const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+                            const fileRef = DB.storage.ref(`orders/${timestamp}_${safeName}/${cleanFileName}`);
+                            
+                            await fileRef.put(file);
+                            const url = await fileRef.getDownloadURL();
+                            fileUrls.push({ name: file.name, url: url });
+                        } catch(err) { console.error("File Upload Failed", err); }
+                    }
+
+                    // 4. Save to Firestore
+                    await DB.db.collection('requests').add({
+                        customerName: name,
+                        phone: document.getElementById('phone').value,
+                        details: document.getElementById('details').value,
+                        audioUrl: audioUrl,
+                        attachmentUrls: fileUrls,
+                        status: 'pending',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    alert("Order Sent Successfully!");
+                    window.location.reload();
+                } catch (err) {
+                    console.error(err);
+                    alert("Error: " + err.message);
+                    loader.classList.add('hidden');
+                }
+            },
+
+            // --- SMART CALENDAR LOGIC ---
+            calendarInstance: null,
+            renderCalendar() {
+                const el = document.getElementById('calendar-wrapper');
+                if (!el) return;
+
+                // 1. Define Holidays (Sri Lanka Poya, Public & Islamic)
+                const holidays = [
+                    // 2025
+                    { title: "Duruthu Poya", start: "2025-01-13", display: "background", color: "#7c3aed" },
+                    { title: "Thai Pongal", start: "2025-01-14", color: "#db2777", isHoliday: true },
+                    { title: "Independence Day", start: "2025-02-04", color: "#ea580c", isHoliday: true },
+                    { title: "Nawam Poya", start: "2025-02-12", display: "background", color: "#7c3aed" },
+                    { title: "Mahasivarathri", start: "2025-02-26", color: "#db2777", isHoliday: true },
+                    { title: "Ramadan Start", start: "2025-03-01", color: "#059669", isHoliday: true },
+                    { title: "Medin Poya", start: "2025-03-13", display: "background", color: "#7c3aed" },
+                    { title: "Eid al-Fitr", start: "2025-03-31", color: "#059669", isHoliday: true },
+                    { title: "Bak Poya", start: "2025-04-12", display: "background", color: "#7c3aed" },
+                    { title: "Sinhala & Tamil New Year", start: "2025-04-13", color: "#ea580c", isHoliday: true },
+                    { title: "Good Friday", start: "2025-04-18", color: "#4b5563", isHoliday: true },
+                    { title: "May Day", start: "2025-05-01", color: "#dc2626", isHoliday: true },
+                    { title: "Vesak Poya", start: "2025-05-12", display: "background", color: "#7c3aed" },
+                    { title: "Poson Poya", start: "2025-06-10", display: "background", color: "#7c3aed" },
+                    { title: "Hajj Festival", start: "2025-06-07", color: "#059669", isHoliday: true },
+                    { title: "Esala Poya", start: "2025-07-10", display: "background", color: "#7c3aed" },
+                    { title: "Nikini Poya", start: "2025-08-08", display: "background", color: "#7c3aed" },
+                    { title: "Prophet's Birthday", start: "2025-09-05", color: "#059669", isHoliday: true },
+                    { title: "Binara Poya", start: "2025-09-07", display: "background", color: "#7c3aed" },
+                    { title: "Vap Poya", start: "2025-10-06", display: "background", color: "#7c3aed" },
+                    { title: "Deepavali", start: "2025-10-20", color: "#db2777", isHoliday: true },
+                    { title: "Ill Poya", start: "2025-11-05", display: "background", color: "#7c3aed" },
+                    { title: "Unduvap Poya", start: "2025-12-04", display: "background", color: "#7c3aed" },
+                    { title: "Christmas", start: "2025-12-25", color: "#16a34a", isHoliday: true },
+
+                    // 2026
+                    { title: "Duruthu Poya", start: "2026-01-03", display: "background", color: "#7c3aed" },
+                    { title: "Thai Pongal", start: "2026-01-15", color: "#db2777", isHoliday: true },
+                    { title: "Navam Poya", start: "2026-02-01", display: "background", color: "#7c3aed" },
+                    { title: "Independence Day", start: "2026-02-04", color: "#ea580c", isHoliday: true },
+                    { title: "Mahasivarathri", start: "2026-02-15", color: "#db2777", isHoliday: true },
+                    { title: "Ramadan Start", start: "2026-02-18", color: "#059669", isHoliday: true },
+                    { title: "Madin Poya", start: "2026-03-02", display: "background", color: "#7c3aed" },
+                    { title: "Eid al-Fitr", start: "2026-03-21", color: "#059669", isHoliday: true },
+                    { title: "Bak Poya", start: "2026-04-01", display: "background", color: "#7c3aed" },
+                    { title: "Good Friday", start: "2026-04-03", color: "#4b5563", isHoliday: true },
+                    { title: "Sinhala & Tamil New Year", start: "2026-04-13", color: "#ea580c", isHoliday: true },
+                    { title: "May Day", start: "2026-05-01", color: "#dc2626", isHoliday: true },
+                    { title: "Vesak Poya", start: "2026-05-01", display: "background", color: "#7c3aed" },
+                    { title: "Eid al-Adha", start: "2026-05-28", color: "#059669", isHoliday: true },
+                    { title: "Poson Poya", start: "2026-06-29", display: "background", color: "#7c3aed" },
+                    { title: "Esala Poya", start: "2026-07-29", display: "background", color: "#7c3aed" },
+                    { title: "Prophet's Birthday", start: "2026-08-26", color: "#059669", isHoliday: true },
+                    { title: "Nikini Poya", start: "2026-08-27", display: "background", color: "#7c3aed" },
+                    { title: "Binara Poya", start: "2026-09-26", display: "background", color: "#7c3aed" },
+                    { title: "Vap Poya", start: "2026-10-25", display: "background", color: "#7c3aed" },
+                    { title: "Deepavali", start: "2026-11-08", color: "#db2777", isHoliday: true },
+                    { title: "Ill Poya", start: "2026-11-24", display: "background", color: "#7c3aed" },
+                    { title: "Unduvap Poya", start: "2026-12-23", display: "background", color: "#7c3aed" },
+                    { title: "Christmas", start: "2026-12-25", color: "#16a34a", isHoliday: true }
+                ];
+
+                // 2. Map Job Events with Strict Date Logic
+                const jobEvents = State.jobs.map(job => {
+                    const deadlineDate = new Date(job.deadline);
+                    deadlineDate.setHours(0,0,0,0); // Normalize to midnight
+                    
+                    const todayDate = new Date();
+                    todayDate.setHours(0,0,0,0); // Normalize to midnight
+
+                    const diffTime = deadlineDate - todayDate;
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                    let color = '#3b82f6'; // Default Blue
+                    let classNames = [];
+
+                    if (job.status === 'completed') {
+                        color = '#10b981'; // Green
+                    } else if (job.status === 'cancelled') {
+                        color = '#94a3b8'; // Gray
+                    } else {
+                        // In Progress Logic
+                        if (diffDays < 0) {
+                            color = '#1e293b'; // Overdue (Dark Slate)
+                        } else if (diffDays <= 2) {
+                            color = '#dc2626'; // Urgent Red
+                            classNames.push('animate-pulse');
+                        } else if (diffDays <= 5) {
+                            color = '#fb923c'; // Warning Orange
+                        }
+                    }
+
+                    return {
+                        title: job.customer,
+                        start: job.deadline,
+                        backgroundColor: color,
+                        borderColor: color,
+                        classNames: classNames,
+                        extendedProps: { ...job, isJob: true, diffDays: diffDays }
+                    };
+                });
+
+                // 3. Combine Events
+                const allEvents = [...holidays, ...jobEvents];
+
+                if (this.calendarInstance) {
+                    this.calendarInstance.destroy();
+                }
+
+                this.calendarInstance = new FullCalendar.Calendar(el, {
+                    initialView: 'dayGridMonth',
+                    headerToolbar: {
+                        left: 'title', // iPhone style: Title on left
+                        center: '',
+                        right: 'prev,next today' // Nav on right
+                    },
+                    contentHeight: 'auto', // Clean height
+                    fixedWeekCount: false, // Only show relevant weeks (Show all relevant days)
+                    showNonCurrentDates: false, // Cleaner look
+                    events: allEvents,
+                    navLinks: true, 
+                    dayMaxEvents: true, 
+                    nowIndicator: true, 
+                    eventDidMount: function(info) {
+                        // Style Background Events (Poya Days)
+                        if (info.event.display === 'background') {
+                            info.el.style.opacity = '0.15';
+                            info.el.innerText = info.event.title; 
+                            info.el.style.color = info.event.backgroundColor;
+                            info.el.style.fontWeight = '800';
+                            info.el.style.textAlign = 'center';
+                            info.el.style.paddingTop = '10px';
+                            info.el.style.fontSize = '0.75rem';
+                            info.el.style.textTransform = 'uppercase';
+                        }
+                    },
+                    eventClick: (info) => {
+                        // Ignore clicks on Holidays
+                        if (info.event.extendedProps.isHoliday || info.event.display === 'background') return;
+
+                        const j = info.event.extendedProps;
+                        
+                        // Status Badge
+                        const statusColors = {
+                            'in_progress': 'bg-yellow-100 text-yellow-700',
+                            'completed': 'bg-green-100 text-green-700',
+                            'cancelled': 'bg-slate-100 text-slate-700'
+                        };
+                        const statusBadge = `<span class="px-2 py-1 rounded text-xs font-bold uppercase ${statusColors[j.status] || 'bg-gray-100'}">${j.status.replace('_', ' ')}</span>`;
+                        
+                        // Urgency text
+                        let urgencyText = "";
+                        if(j.status === 'in_progress') {
+                            if(j.diffDays < 0) urgencyText = `<span class="text-red-600 font-bold ml-2 text-xs">⚠️ OVERDUE by ${Math.abs(j.diffDays)} days</span>`;
+                            else if(j.diffDays <= 2) urgencyText = `<span class="text-red-500 font-bold ml-2 text-xs">🔥 Due Soon</span>`;
+                        }
+
+                        UI.openModal(`
+                            <div class="p-6">
+                                <div class="flex justify-between items-start mb-4">
+                                    <div>
+                                        <h3 class="text-xl font-bold text-slate-800 mb-1 flex items-center gap-2">
+                                            ${j.customer}
+                                            ${statusBadge}
+                                        </h3>
+                                        <a href="tel:${j.phone}" class="text-sm text-primary-600 hover:underline flex items-center gap-1"><i class="ph ph-phone"></i> ${j.phone}</a>
+                                    </div>
+                                    <div class="text-right">
+                                         <p class="text-xs text-slate-400 font-bold uppercase">Job Value</p>
+                                         <p class="font-bold text-lg text-slate-800">Rs. ${Utils.formatMoney(j.price)}</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-6 relative overflow-hidden group">
+                                    <div class="absolute top-0 left-0 w-1 h-full bg-primary-500"></div>
+                                    <p class="text-xs text-slate-400 font-bold uppercase mb-2">Printing Specification</p>
+                                    <p class="font-medium text-slate-700 text-sm leading-relaxed">${j.details}</p>
+                                </div>
+                                
+                                <div class="flex items-center justify-between border-t border-slate-100 pt-4 mt-4">
+                                    <div class="text-sm">
+                                        <span class="text-slate-500">Deadline:</span> <span class="font-bold text-slate-800">${j.deadline}</span>
+                                        ${urgencyText}
+                                    </div>
+                                    <div class="flex gap-2">
+                                        ${j.status === 'in_progress' ? 
+                                            `<button onclick="App.updateStatus('${j.id}', 'completed'); UI.closeModal();" class="px-4 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 text-sm flex items-center gap-2"><i class="ph ph-check"></i> Mark Complete</button>` 
+                                            : ''}
+                                        <button onclick="UI.navigate('tasks'); UI.closeModal();" class="px-4 py-2 border border-slate-200 text-slate-600 font-bold rounded-lg hover:bg-slate-50 text-sm">View All Tasks</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `);
+                    }
+                });
+
+                this.calendarInstance.render();
+            },
+
+            // Jobs
+            submitJob(e) {
+                e.preventDefault();
+                const form = e.target;
+                const formData = new FormData(form);
+                
+                // Extract Checkboxes and combine them
+                const selectedOptions = Array.from(form.querySelectorAll('input[name="job_details_check"]:checked')).map(cb => cb.value);
+                const otherDetails = formData.get('job_details_other');
+                
+                // Combine into a single string
+                const finalDetails = [...selectedOptions, otherDetails].filter(Boolean).join(', ');
+
+                if (!finalDetails) {
+                    UI.showToast('Validation Error', 'Please select at least one job requirement or add details.', 'error');
+                    return;
+                }
+
+                const jobData = {
+                    customer: formData.get('customer'),
+                    phone: formData.get('phone'),
+                    details: finalDetails,
+                    price: parseFloat(formData.get('price')),
+                    discount: parseFloat(formData.get('discount') || 0),
+                    deadline: formData.get('deadline'),
+                    status: 'in_progress',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                
+                DB.db.collection('jobs').add(jobData).then(() => {
+                    UI.showToast('Job Created', `Order for ${jobData.customer} added.`);
+                    UI.navigate('tasks');
+                });
+            },
+
+            updateStatus(id, status) {
+                DB.db.collection('jobs').doc(id).update({ status });
+                UI.showToast('Status Updated', 'Job status changed successfully.');
+            },
+            
+            deleteJob(id) {
+                if(confirm('Delete this job?')) DB.db.collection('jobs').doc(id).delete();
+            },
+            
+            filterTasks(query) {
+                const rows = document.querySelectorAll('#tasks-table-body tr');
+                query = query.toLowerCase();
+                rows.forEach(row => {
+                    row.style.display = row.innerText.toLowerCase().includes(query) ? '' : 'none';
+                });
+            },
+
+            // Request System
+            dismissRequest(id) {
+                if(confirm('Archive this request?')) {
+                    DB.db.collection('requests').doc(id).update({ status: 'archived' });
+                }
+            },
+
+            acceptRequest(req) {
+                DB.db.collection('requests').doc(req.id).update({ status: 'accepted' });
+                UI.navigate('newJob');
+                setTimeout(() => {
+                    const form = document.getElementById('new-job-form');
+                    if (!form) return;
+                    form.querySelector('[name="customer"]').value = req.customerName || '';
+                    form.querySelector('[name="phone"]').value = req.phone || '';
+                    let combinedDetails = req.details || '';
+                    if (req.attachmentUrls && req.attachmentUrls.length > 0) {
+                        combinedDetails += '\n\n--- ATTACHED FILES ---\n';
+                        req.attachmentUrls.forEach(f => { combinedDetails += `${f.name}: ${f.url}\n`; });
+                    }
+                    if (req.audioUrl) { combinedDetails += `\n--- VOICE NOTE ---\n${req.audioUrl}`; }
+                    form.querySelector('[name="job_details_other"]').value = combinedDetails;
+                    UI.showToast('Data Pre-filled', 'Review details and set price to save.', 'success');
+                }, 300);
+            },
+
+            // Inventory System
+            openInventoryModal(item = null) {
+                const isEdit = !!item;
+                const modalHtml = `
+                    <div class="p-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="text-xl font-bold text-slate-800">${isEdit ? 'Edit Item' : 'Add New Item'}</h3>
+                            <button onclick="UI.closeModal()" class="text-slate-400 hover:text-slate-600"><i class="ph ph-x text-xl"></i></button>
+                        </div>
+                        <form onsubmit="App.saveInventoryItem(event, '${isEdit ? item.id : ''}')" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Item Name</label>
+                                <input type="text" name="name" value="${isEdit ? item.name : ''}" required class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:outline-none text-sm">
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Category</label>
+                                    <select name="category" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:outline-none text-sm">
+                                        ${['Paper', 'Ink', 'Binding', 'Merch', 'Other'].map(c => `<option value="${c}" ${isEdit && item.category === c ? 'selected' : ''}>${c}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Unit Type</label>
+                                    <input type="text" name="unit" placeholder="e.g. Sheets, Bottles" value="${isEdit ? item.unit || '' : ''}" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:outline-none text-sm">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Current Stock</label>
+                                    <input type="number" name="qty" value="${isEdit ? item.qty : '0'}" required class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:outline-none text-sm font-mono">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1 text-orange-500">Low Stock Alert Level</label>
+                                    <input type="number" name="minLevel" value="${isEdit ? item.minLevel || 5 : '5'}" class="w-full p-3 bg-orange-50 border border-orange-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:outline-none text-sm font-mono">
+                                </div>
+                            </div>
+                            <div class="pt-4 flex justify-end gap-3">
+                                <button type="button" onclick="UI.closeModal()" class="px-4 py-2 text-slate-500 font-bold hover:bg-slate-50 rounded-lg text-sm">Cancel</button>
+                                <button type="submit" class="px-6 py-2 bg-primary-600 text-white font-bold rounded-lg hover:bg-primary-700 shadow-lg shadow-primary-500/30 text-sm">Save Item</button>
+                            </div>
+                        </form>
+                    </div>
+                `;
+                UI.openModal(modalHtml);
+            },
+
+            saveInventoryItem(e, id) {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const data = {
+                    name: formData.get('name'),
+                    category: formData.get('category'),
+                    unit: formData.get('unit'),
+                    qty: parseInt(formData.get('qty')),
+                    minLevel: parseInt(formData.get('minLevel'))
+                };
+
+                if (id) {
+                    DB.db.collection('inventory').doc(id).update(data);
+                    UI.showToast('Updated', 'Item updated successfully');
+                } else {
+                    DB.db.collection('inventory').add(data);
+                    UI.showToast('Added', 'New item added to inventory');
+                }
+                UI.closeModal();
+            },
+            
+            updateStock(id, change) {
+                const item = State.inventory.find(i => i.id === id);
+                if(item) {
+                    const newQty = Math.max(0, item.qty + change);
+                    DB.db.collection('inventory').doc(id).update({ qty: newQty });
+                }
+            },
+
+            setExactStock(id, val) {
+                const newQty = Math.max(0, parseInt(val) || 0);
+                DB.db.collection('inventory').doc(id).update({ qty: newQty });
+            },
+            
+            deleteInventory(id) {
+                if(confirm('Are you sure you want to permanently remove this item?')) {
+                    DB.db.collection('inventory').doc(id).delete();
+                    UI.showToast('Deleted', 'Item removed from inventory', 'error');
+                }
+            },
+
+            filterInventory(query) {
+                const rows = document.querySelectorAll('#inventory-table-body tr');
+                query = query.toLowerCase();
+                rows.forEach(row => {
+                    const text = row.innerText.toLowerCase();
+                    row.style.display = text.includes(query) ? '' : 'none';
+                });
+            },
+
+            filterInventoryByCategory(cat) {
+                const rows = document.querySelectorAll('.inv-row');
+                rows.forEach(row => {
+                    if (cat === 'all' || row.dataset.cat === cat) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            },
+
+            // Daily Sheet Logic
+            loadSheetForDate(date) {
+                DB.loadDailySheet(date);
+            },
+
+            calculateSheetTotals(shouldSave = true) {
+                // 1. Calculate Sales & Count Customers
+                let totalSales = 0;
+                let bankSales = 0;
+                let customerCount = 0;
+
+                // Loop 1-100 to check all fixed rows
+                for(let i = 1; i <= 100; i++) {
+                    const amtInput = document.getElementById(`amt-${i}`);
+                    const descInput = document.getElementById(`desc-${i}`);
+                    
+                    if (amtInput && descInput) {
+                        const val = parseFloat(amtInput.value) || 0;
+                        const desc = descInput.value.trim();
+                        totalSales += val;
+                        
+                        // Check if Payment Type is Bank (B)
+                        const isBank = document.querySelector(`input[name="pay-${i}"][value="bank"]`)?.checked;
+                        if (isBank) {
+                            bankSales += val;
+                        }
+
+                        // Count if row has data
+                        if (val > 0 || desc !== "") {
+                            customerCount++;
+                        }
+                    }
+                }
+                
+                // Update Customer Count UI
+                const countEl = document.getElementById('dsp-total-customers');
+                if(countEl) countEl.textContent = customerCount;
+
+                // 2. Calculate Expenses
+                let totalExpenses = 0;
+                document.querySelectorAll('.exp-amt').forEach(inp => totalExpenses += (parseFloat(inp.value) || 0));
+
+                // 3. Update Banked Field Automatically based on 'B' selections
+                // This ensures 'B' items are visible in Banked and removed from Cash In Hand logic below
+                const bankedInput = document.getElementById('dsp-banked');
+                if(bankedInput) bankedInput.value = bankSales;
+
+                // 4. Summary
+                const banked = bankSales; // Use calculated bank sales
+                const pettyCash = parseFloat(document.getElementById('dsp-petty-cash').value) || 0;
+                
+                // Math: Calculate with precision and store in App cache
+                // Formula: Total Sales (includes B) + Petty - Expenses - Banked (removes B) = Cash In Hand
+                const cashInHand = Math.round((totalSales + pettyCash - totalExpenses - banked) * 100) / 100;
+                this.cachedCashInHand = cashInHand;
+                
+                // Update UI with Animation
+                const totalSalesEl = document.getElementById('dsp-total-sales');
+                totalSalesEl.textContent = `Rs. ${Utils.formatMoney(totalSales)}`;
+                
+                // Animation Trigger
+                totalSalesEl.classList.remove('scale-110');
+                void totalSalesEl.offsetWidth; // Force reflow
+                totalSalesEl.classList.add('scale-110');
+                setTimeout(() => totalSalesEl.classList.remove('scale-110'), 200);
+
+                document.getElementById('dsp-total-expenses').textContent = `- Rs. ${Utils.formatMoney(totalExpenses)}`;
+                document.getElementById('dsp-cash-hand').textContent = `Rs. ${Utils.formatMoney(cashInHand)}`;
+                
+                // Trigger Cash Counter Calc to update variance
+                // FIXED: Pass shouldSave down to prevent downstream saving
+                this.calculateCashCounter(cashInHand, shouldSave);
+                
+                // FIXED: Only save if shouldSave is true
+                if(shouldSave) this.debouncedSaveSheet();
+            },
+
+            calculateCashCounter(expectedTotal = null, shouldSave = true) {
+                const inputs = document.querySelectorAll('.cc-input');
+                let total = 0;
+                inputs.forEach(input => {
+                    const d = parseFloat(input.dataset.denom);
+                    const count = parseFloat(input.value) || 0;
+                    const sub = d * count;
+                    total += sub;
+                    document.getElementById(`cc-sum-${d}`).textContent = Utils.formatMoney(sub);
+                });
+                
+                // Round total to avoid floating point errors
+                total = Math.round(total * 100) / 100;
+                
+                document.getElementById('cc-total').textContent = `Rs. ${Utils.formatMoney(total)}`;
+                
+                // Variance Logic: Use cached value if available to avoid parsing errors
+                let target = expectedTotal;
+                if (target === null) {
+                   // Prefer the precise cached number over scraping HTML
+                   target = (this.cachedCashInHand !== undefined) ? this.cachedCashInHand : 0;
+                }
+                
+                // Math: Calculate variance with precision
+                const variance = Math.round((total - target) * 100) / 100;
+                
+                const vEl = document.getElementById('cc-variance');
+                vEl.textContent = `Variance: Rs. ${Utils.formatMoney(variance)}`;
+                
+                // Use strict epsilon comparison for color coding (0.01 instead of 1)
+                vEl.className = Math.abs(variance) < 0.01
+                    ? "mt-2 text-center text-xl font-bold p-2 rounded bg-green-100 text-green-700" 
+                    : "mt-2 text-center text-xl font-bold p-2 rounded bg-red-100 text-red-700";
+                
+                // FIXED: Only save if shouldSave is true
+                if(shouldSave) this.debouncedSaveSheet();
+            },
+
+            saveTimer: null,
+            debouncedSaveSheet() {
+                document.getElementById('auto-save-indicator').textContent = "Typing...";
+                clearTimeout(this.saveTimer);
+                this.saveTimer = setTimeout(() => {
+                    this.gatherAndSaveSheet();
+                }, 1000);
+            },
+
+            gatherAndSaveSheet() {
+                const date = document.getElementById('sheet-date').value;
+                const sales = [];
+                
+                // Gather exactly 100 rows to maintain index positions
+                for(let i = 1; i <= 100; i++) {
+                    const desc = document.getElementById(`desc-${i}`).value;
+                    const amount = document.getElementById(`amt-${i}`).value; // Keep as string to preserve empty state
+                    const checked = document.querySelector(`input[name="pay-${i}"]:checked`);
+                    
+                    // We save even empty rows as placeholders to ensure row 5 stays at index 4
+                    // Or we save a sparse array. Better to save objects with values.
+                    // If we want accurate reproduction on reload, we just save the list.
+                    // Optimization: We can just map 1-100.
+                    
+                    sales.push({ 
+                        desc: desc, 
+                        amount: amount, 
+                        type: checked ? checked.value : 'cash' 
+                    });
+                }
+
+                // Gather Expenses
+                const expenses = [];
+                const expRows = document.getElementById('expenses-rows-container').children;
+                for(let row of expRows) {
+                    const desc = row.querySelector('.exp-desc').value;
+                    const amount = parseFloat(row.querySelector('.exp-amt').value) || 0;
+                    if(desc || amount) expenses.push({desc, amount});
+                }
+
+                const cashCounts = {};
+                document.querySelectorAll('.cc-input').forEach(i => {
+                    if(i.value) cashCounts[i.dataset.denom] = i.value;
+                });
+
+                const data = {
+                    sales, // Array of 100 items
+                    expenses,
+                    banked: parseFloat(document.getElementById('dsp-banked').value) || 0,
+                    pettyCash: parseFloat(document.getElementById('dsp-petty-cash').value) || 0,
+                    cashCounts,
+                    totalCustomers: parseInt(document.getElementById('dsp-total-customers').textContent) || 0,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                DB.saveDailySheet(date, data);
+                document.getElementById('auto-save-indicator').textContent = "Saved";
+            }
+        };
+
+        // --- UTILS ---
+        const Utils = {
+            formatMoney: (n) => (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+            getStatusColor: (status) => ({
+                'in_progress': 'bg-yellow-100 text-yellow-700',
+                'completed': 'bg-green-100 text-green-700',
+                'cancelled': 'bg-red-100 text-red-700'
+            })[status] || 'bg-slate-100',
+            formatStatus: (s) => s.replace('_', ' ').toUpperCase(),
+            getDeadlineClass: (dateStr) => {
+                if (!dateStr) return '';
+                const days = Math.ceil((new Date(dateStr) - new Date()) / (1000 * 60 * 60 * 24));
+                return days < 0 ? 'text-red-600 font-bold' : days < 3 ? 'text-yellow-600 font-bold' : 'text-slate-600';
+            }
+        };
+
+        // --- BOOTSTRAP ---
+        App.init();
+
     </script>
 </body>
 </html>
