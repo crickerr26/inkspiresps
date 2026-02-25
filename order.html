@@ -9,6 +9,7 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 
@@ -18,7 +19,7 @@
         }
         
         const firebaseConfig = {
-            apiKey: "AIzaSyBK4ZYB37Ke3E_bdkhY3XeScrelwSl8fYupw",
+            apiKey: "AIzaSyBK4zY3Et3E_bdKhY3Ke6cre1wSl8fyupw",
             authDomain: "inkspire-93fa1.firebaseapp.com",
             projectId: "inkspire-93fa1",
             storageBucket: "inkspire-93fa1.firebasestorage.app",
@@ -26,6 +27,7 @@
             appId: "1:78600122689:web:37da9c31db4fb36d4d71c0"
         };
         firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
         const db = firebase.firestore();
         const storage = firebase.storage();
     </script>
@@ -213,6 +215,11 @@
             loader.classList.remove('hidden');
             
             try {
+                // Ensure user is authenticated anonymously before writing to Firebase Storage/Firestore
+                if (!auth.currentUser) {
+                    await auth.signInAnonymously();
+                }
+
                 const timestamp = Date.now();
                 const name = document.getElementById('name').value;
                 const safeName = name.replace(/[^a-zA-Z0-9.-]/g, '_'); // CRITICAL FIX: Sanitize name
@@ -267,7 +274,7 @@
                 window.location.reload();
             } catch (err) {
                 console.error(err);
-                alert("Error sending order. Please try again.");
+                alert("Error sending order: " + err.message);
                 loader.classList.add('hidden');
             }
         }
