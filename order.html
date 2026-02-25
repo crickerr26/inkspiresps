@@ -32,121 +32,402 @@
         const storage = firebase.storage();
     </script>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex items-center justify-center p-4">
+<body class="bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 text-slate-800 min-h-screen flex flex-col items-center justify-center p-4 sm:p-6 font-sans">
 
-    <div class="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
-        <div class="bg-violet-600 p-6 text-white text-center">
-            <i class="ph ph-paper-plane-tilt text-4xl mb-2"></i>
-            <h1 class="text-xl font-bold">Send New Order</h1>
-            <p class="text-violet-200 text-sm">Upload files or record a voice note</p>
+    <div class="w-full max-w-lg bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border border-white">
+        
+        <div class="bg-gradient-to-r from-violet-600 to-fuchsia-600 p-6 text-white text-center relative" id="headerSection">
+            <h1 class="text-2xl font-bold mb-1">Send an Order</h1>
+            <p class="text-violet-200 text-sm">Quick, easy, and hassle-free</p>
+            
+            <div class="flex items-center justify-center gap-2 mt-6">
+                <div id="dot1" class="w-3 h-3 rounded-full bg-white transition-all shadow-md"></div>
+                <div class="w-8 h-1 bg-white/30 rounded-full">
+                    <div id="line1" class="h-full bg-white rounded-full w-0 transition-all duration-300"></div>
+                </div>
+                <div id="dot2" class="w-3 h-3 rounded-full bg-white/40 transition-all"></div>
+                <div class="w-8 h-1 bg-white/30 rounded-full">
+                    <div id="line2" class="h-full bg-white rounded-full w-0 transition-all duration-300"></div>
+                </div>
+                <div id="dot3" class="w-3 h-3 rounded-full bg-white/40 transition-all"></div>
+            </div>
         </div>
 
-        <form id="orderForm" onsubmit="submitOrder(event)" class="p-6 space-y-5">
-            <div class="space-y-3">
-                <input type="text" id="name" required placeholder="Your Name" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-violet-500 outline-none transition-all">
-                <input type="tel" id="phone" required placeholder="Phone Number" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-violet-500 outline-none transition-all">
-                
-                <select id="deliveryMethod" required onchange="toggleDeliveryFields()" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-violet-500 outline-none transition-all text-slate-600">
-                    <option value="" disabled selected>Select Delivery Method</option>
-                    <option value="Home Delivery">Home Delivery</option>
-                    <option value="WhatsApp">WhatsApp</option>
-                    <option value="Email">Email</option>
-                </select>
+        <form id="orderForm" onsubmit="submitOrder(event)" class="relative min-h-[400px]">
+            
+            <div id="step1" class="p-6 space-y-5 animate-fade-in absolute w-full top-0 left-0">
+                <h2 class="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-xs">1</span>
+                    Your Information
+                </h2>
 
-                <div id="homeDeliveryField" class="hidden">
-                    <textarea id="homeAddress" placeholder="Full Home Address" rows="2" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-violet-500 outline-none transition-all"></textarea>
-                </div>
-                
-                <div id="whatsappField" class="hidden">
-                    <input type="tel" id="whatsappNumber" placeholder="WhatsApp Number (e.g. +60123456789)" pattern="^\+?[0-9\s\-]+$" title="Please enter a valid phone number" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-violet-500 outline-none transition-all">
-                </div>
-
-                <div id="emailField" class="hidden">
-                    <input type="email" id="emailAddress" placeholder="Email Address" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-violet-500 outline-none transition-all">
-                </div>
-            </div>
-
-            <div class="border border-dashed border-slate-300 rounded-xl p-4 text-center space-y-2">
-                <p class="text-xs font-bold text-slate-400 uppercase">Voice Note</p>
-                <div class="flex items-center justify-center gap-4">
-                    <button type="button" id="recordBtn" onclick="toggleRecording()" class="w-12 h-12 rounded-full bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center text-xl transition-all"><i class="ph ph-microphone"></i></button>
-                    <div id="audioPreview" class="hidden">
-                        <audio id="audioPlayer" controls class="h-8 w-40"></audio>
-                        <button type="button" onclick="clearAudio()" class="text-xs text-red-500 font-bold mt-1">Delete</button>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">Full Name</label>
+                        <input type="text" id="name" placeholder="John Doe" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all text-sm font-medium">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">Phone Number</label>
+                        <input type="tel" id="phone" placeholder="e.g. 077 123 4567" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all text-sm font-medium">
                     </div>
                 </div>
-                <p id="recordStatus" class="text-xs text-slate-400">Tap to record</p>
+
+                <div class="pt-2">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-3 ml-1">How should we deliver?</label>
+                    <div class="grid grid-cols-3 gap-3">
+                        <label class="cursor-pointer relative">
+                            <input type="radio" name="deliveryMethod" value="Home Delivery" class="peer sr-only" onchange="toggleDeliveryFields()">
+                            <div class="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-center hover:bg-violet-50 peer-checked:bg-violet-50 peer-checked:border-violet-500 peer-checked:text-violet-700 transition-all">
+                                <i class="ph ph-house text-2xl mb-1"></i>
+                                <span class="block text-[10px] font-bold uppercase">Home</span>
+                            </div>
+                            <div class="absolute -top-1 -right-1 w-4 h-4 bg-violet-500 text-white rounded-full flex items-center justify-center opacity-0 peer-checked:opacity-100 transition-opacity"><i class="ph ph-check text-[10px]"></i></div>
+                        </label>
+                        <label class="cursor-pointer relative">
+                            <input type="radio" name="deliveryMethod" value="WhatsApp" class="peer sr-only" onchange="toggleDeliveryFields()">
+                            <div class="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-center hover:bg-violet-50 peer-checked:bg-violet-50 peer-checked:border-violet-500 peer-checked:text-violet-700 transition-all">
+                                <i class="ph ph-whatsapp-logo text-2xl mb-1"></i>
+                                <span class="block text-[10px] font-bold uppercase">WhatsApp</span>
+                            </div>
+                            <div class="absolute -top-1 -right-1 w-4 h-4 bg-violet-500 text-white rounded-full flex items-center justify-center opacity-0 peer-checked:opacity-100 transition-opacity"><i class="ph ph-check text-[10px]"></i></div>
+                        </label>
+                        <label class="cursor-pointer relative">
+                            <input type="radio" name="deliveryMethod" value="Email" class="peer sr-only" onchange="toggleDeliveryFields()">
+                            <div class="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-center hover:bg-violet-50 peer-checked:bg-violet-50 peer-checked:border-violet-500 peer-checked:text-violet-700 transition-all">
+                                <i class="ph ph-envelope text-2xl mb-1"></i>
+                                <span class="block text-[10px] font-bold uppercase">Email</span>
+                            </div>
+                            <div class="absolute -top-1 -right-1 w-4 h-4 bg-violet-500 text-white rounded-full flex items-center justify-center opacity-0 peer-checked:opacity-100 transition-opacity"><i class="ph ph-check text-[10px]"></i></div>
+                        </label>
+                    </div>
+                </div>
+
+                <div id="dynamicDeliveryContainer" class="hidden pt-2">
+                    <div id="homeDeliveryField" class="hidden">
+                        <textarea id="homeAddress" placeholder="Enter your full home address" rows="2" class="w-full p-4 bg-violet-50 border border-violet-200 rounded-2xl focus:border-violet-500 outline-none transition-all text-sm"></textarea>
+                    </div>
+                    <div id="whatsappField" class="hidden">
+                        <input type="tel" id="whatsappNumber" placeholder="Enter WhatsApp Number" class="w-full p-4 bg-violet-50 border border-violet-200 rounded-2xl focus:border-violet-500 outline-none transition-all text-sm">
+                    </div>
+                    <div id="emailField" class="hidden">
+                        <input type="email" id="emailAddress" placeholder="Enter Email Address" class="w-full p-4 bg-violet-50 border border-violet-200 rounded-2xl focus:border-violet-500 outline-none transition-all text-sm">
+                    </div>
+                </div>
+
+                <div class="pt-6">
+                    <button type="button" onclick="goToStep(2)" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold text-lg hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 flex items-center justify-center gap-2">
+                        Next Step <i class="ph ph-arrow-right"></i>
+                    </button>
+                </div>
             </div>
 
-            <div>
-                <label class="block w-full p-4 border-2 border-dashed border-slate-200 rounded-xl hover:border-violet-400 cursor-pointer transition-all text-center">
-                    <i class="ph ph-upload-simple text-2xl text-slate-400 mb-1"></i>
-                    <span class="block text-sm font-bold text-slate-600">Tap to upload files</span>
-                    <span class="block text-xs text-slate-400">PDF, JPG, PNG (Max 10MB)</span>
-                    <input type="file" id="files" multiple class="hidden" onchange="showFileCount(this)">
-                </label>
-                <div id="fileList" class="mt-2 text-xs text-slate-500 font-medium text-center"></div>
+            <div id="step2" class="p-6 space-y-6 hidden absolute w-full top-0 left-0 bg-white z-10">
+                <h2 class="text-lg font-bold text-slate-700 mb-2 flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-xs">2</span>
+                    What do you need?
+                </h2>
+
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Print Type</label>
+                            <select id="printType" class="w-full p-3 bg-white border border-slate-200 rounded-xl focus:border-violet-500 outline-none text-sm font-medium">
+                                <option value="Document / Photocopy">Document / Photocopy</option>
+                                <option value="Visiting Card">Visiting Card</option>
+                                <option value="Flyer / Brochure">Flyer / Brochure</option>
+                                <option value="Banner / Poster">Banner / Poster</option>
+                                <option value="Mug / T-Shirt">Mug / T-Shirt</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Size</label>
+                            <select id="printSize" class="w-full p-3 bg-white border border-slate-200 rounded-xl focus:border-violet-500 outline-none text-sm font-medium">
+                                <option value="A4 (Standard)">A4 (Standard)</option>
+                                <option value="A3 (Large)">A3 (Large)</option>
+                                <option value="Standard Card Size">Standard Card Size</option>
+                                <option value="Custom / Unsure">Custom / Unsure</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Quantity</label>
+                            <input type="number" id="printQty" value="1" min="1" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-center font-bold text-sm focus:border-violet-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Color</label>
+                            <select id="colorMode" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:border-violet-500 outline-none">
+                                <option value="Color">Color</option>
+                                <option value="Black & White">B & W</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Paper</label>
+                            <select id="paperType" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:border-violet-500 outline-none">
+                                <option value="Normal">Normal</option>
+                                <option value="Glossy">Glossy</option>
+                                <option value="Matte">Matte</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <label class="flex items-center gap-3 p-3 bg-orange-50 border border-orange-100 rounded-xl cursor-pointer hover:bg-orange-100 transition-colors">
+                        <input type="checkbox" id="isUrgent" class="w-5 h-5 rounded text-orange-500 focus:ring-orange-500 border-orange-300">
+                        <span class="text-sm font-bold text-orange-700">Mark as Urgent Order 🔥</span>
+                    </label>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="flex flex-col items-center justify-center w-full p-6 border-2 border-dashed border-violet-200 bg-violet-50/50 rounded-2xl hover:border-violet-400 cursor-pointer transition-all text-center">
+                            <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm mb-2 text-violet-500">
+                                <i class="ph ph-upload-simple text-2xl"></i>
+                            </div>
+                            <span class="block text-sm font-bold text-slate-700">Tap to attach files</span>
+                            <span class="block text-[11px] text-slate-500 mt-1">PDF, JPG, PNG (Max 10MB)</span>
+                            <input type="file" id="files" multiple class="hidden" onchange="showFileTags(this)">
+                        </label>
+                        <div id="fileList" class="mt-3 flex flex-wrap gap-2 justify-center"></div>
+                    </div>
+
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center justify-between gap-4">
+                        <div class="flex-1">
+                            <p class="text-sm font-bold text-slate-700">Add a Voice Note</p>
+                            <p class="text-[11px] text-slate-500">Explain exactly what you need</p>
+                        </div>
+                        
+                        <div class="flex items-center justify-end">
+                            <button type="button" id="recordBtn" onclick="toggleRecording()" class="w-12 h-12 rounded-full bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center text-xl transition-all shadow-sm">
+                                <i class="ph ph-microphone"></i>
+                            </button>
+                            <div id="audioPreview" class="hidden flex items-center gap-2">
+                                <audio id="audioPlayer" controls class="h-10 w-40"></audio>
+                                <button type="button" onclick="clearAudio()" class="w-10 h-10 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center hover:bg-red-100 hover:text-red-500 transition-colors">
+                                    <i class="ph ph-trash text-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <textarea id="details" rows="2" placeholder="Any extra instructions? Type here..." class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-violet-500 outline-none transition-all text-sm"></textarea>
+                </div>
+
+                <div class="pt-2 flex gap-3">
+                    <button type="button" onclick="goToStep(1)" class="w-1/3 py-4 rounded-2xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all">Back</button>
+                    <button type="button" onclick="goToStep(3)" class="w-2/3 bg-slate-900 text-white py-4 rounded-2xl font-bold text-lg hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20">Review Order</button>
+                </div>
             </div>
 
-            <textarea id="details" rows="3" placeholder="Type instructions here..." class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-violet-500 outline-none transition-all"></textarea>
+            <div id="step3" class="p-6 space-y-6 hidden absolute w-full top-0 left-0 bg-white z-10">
+                <div class="text-center mb-6">
+                    <div class="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-3 shadow-sm">
+                        <i class="ph ph-magnifying-glass"></i>
+                    </div>
+                    <h2 class="text-xl font-bold text-slate-800">Review Your Order</h2>
+                    <p class="text-slate-500 text-xs">Please check everything before sending</p>
+                </div>
 
-            <button type="submit" id="submitBtn" class="w-full bg-violet-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-violet-700 transition-all shadow-lg shadow-violet-500/30">
-                Send Order
-            </button>
+                <div class="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-4 text-sm" id="reviewContent">
+                    </div>
+
+                <div class="pt-4 flex gap-3">
+                    <button type="button" onclick="goToStep(2)" class="w-1/3 py-4 rounded-2xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all">Edit</button>
+                    <button type="submit" id="submitBtn" class="w-2/3 bg-violet-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-violet-700 transition-all shadow-lg shadow-violet-500/30 flex items-center justify-center gap-2">
+                        <i class="ph ph-paper-plane-tilt"></i> Send Order
+                    </button>
+                </div>
+            </div>
+
+            <div id="stepSuccess" class="p-8 hidden absolute w-full top-0 left-0 bg-white z-20 text-center min-h-[400px] flex-col items-center justify-center">
+                <div class="w-24 h-24 bg-green-500 text-white rounded-full flex items-center justify-center text-5xl mx-auto mb-6 shadow-xl shadow-green-500/30 animate-bounce">
+                    <i class="ph ph-check-circle"></i>
+                </div>
+                <h2 class="text-3xl font-bold text-slate-800 mb-2">Awesome!</h2>
+                <p class="text-slate-500 mb-6">Your order has been sent successfully.</p>
+                
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-8 inline-block mx-auto">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Reference Number</p>
+                    <p class="text-xl font-mono font-bold text-violet-600" id="refNumber">ORD-0000</p>
+                </div>
+
+                <div class="space-y-3 w-full">
+                    <a href="javascript:window.location.reload()" class="block w-full py-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors">Send Another Order</a>
+                    <a href="#" class="block w-full py-4 bg-green-50 text-green-600 font-bold rounded-2xl hover:bg-green-100 transition-colors flex items-center justify-center gap-2">
+                        <i class="ph ph-whatsapp-logo text-xl"></i> Chat with us
+                    </a>
+                </div>
+            </div>
+
         </form>
     </div>
 
-    <div id="loader" class="fixed inset-0 bg-white/90 hidden flex-col items-center justify-center z-50">
-        <div class="w-12 h-12 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin mb-4"></div>
-        <p id="loaderText" class="font-bold text-slate-600">Submitting order...</p>
+    <div id="loader" class="fixed inset-0 bg-white/95 hidden flex-col items-center justify-center z-50 backdrop-blur-sm">
+        <div class="relative w-20 h-20 mb-6">
+            <div class="absolute inset-0 border-4 border-violet-100 rounded-full"></div>
+            <div class="absolute inset-0 border-4 border-violet-600 rounded-full border-t-transparent animate-spin"></div>
+            <i class="ph ph-cloud-arrow-up absolute inset-0 flex items-center justify-center text-2xl text-violet-500"></i>
+        </div>
+        <h3 class="font-bold text-xl text-slate-800 mb-1">Sending Order...</h3>
+        <p id="loaderText" class="text-sm text-slate-500 font-medium">Please wait a moment</p>
     </div>
 
+    <style>
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        .form-container-transition { transition: height 0.3s ease-in-out; }
+    </style>
+
     <script>
+        // Form Wizard Logic
+        let currentStep = 1;
+        
+        function updateProgressBar(step) {
+            if(step === 1) {
+                document.getElementById('dot2').classList.replace('bg-white', 'bg-white/40');
+                document.getElementById('dot3').classList.replace('bg-white', 'bg-white/40');
+                document.getElementById('line1').style.width = '0%';
+                document.getElementById('line2').style.width = '0%';
+            } else if(step === 2) {
+                document.getElementById('dot2').classList.replace('bg-white/40', 'bg-white');
+                document.getElementById('dot3').classList.replace('bg-white', 'bg-white/40');
+                document.getElementById('line1').style.width = '100%';
+                document.getElementById('line2').style.width = '0%';
+            } else if(step >= 3) {
+                document.getElementById('dot3').classList.replace('bg-white/40', 'bg-white');
+                document.getElementById('line2').style.width = '100%';
+            }
+        }
+
+        function validateStep1() {
+            const name = document.getElementById('name').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const method = document.querySelector('input[name="deliveryMethod"]:checked');
+
+            if (!name || !phone) { alert("Please enter your Name and Phone Number."); return false; }
+            if (!method) { alert("Please choose a delivery method."); return false; }
+
+            const methodVal = method.value;
+            if (methodVal === 'Home Delivery' && !document.getElementById('homeAddress').value.trim()) {
+                alert("Please enter your Home Address."); return false;
+            }
+            if (methodVal === 'WhatsApp' && !document.getElementById('whatsappNumber').value.trim()) {
+                alert("Please enter your WhatsApp Number."); return false;
+            }
+            if (methodVal === 'Email' && !document.getElementById('emailAddress').value.trim()) {
+                alert("Please enter your Email Address."); return false;
+            }
+            return true;
+        }
+
+        function populateReview() {
+            const name = document.getElementById('name').value;
+            const phone = document.getElementById('phone').value;
+            const method = document.querySelector('input[name="deliveryMethod"]:checked').value;
+            
+            const printType = document.getElementById('printType').value;
+            const qty = document.getElementById('printQty').value;
+            const isUrgent = document.getElementById('isUrgent').checked;
+            
+            const files = document.getElementById('files').files;
+            const hasVoice = audioBlob !== null;
+
+            let fileTag = files.length > 0 ? `<span class="text-violet-600 font-bold">${files.length} File(s) attached</span>` : `<span class="text-slate-400">No files</span>`;
+            let voiceTag = hasVoice ? `<span class="text-red-500 font-bold"><i class="ph ph-microphone"></i> Voice recorded</span>` : `<span class="text-slate-400">No voice note</span>`;
+            let urgentBadge = isUrgent ? `<span class="bg-orange-100 text-orange-600 px-2 py-0.5 rounded text-[10px] font-bold uppercase ml-2">Urgent</span>` : '';
+
+            document.getElementById('reviewContent').innerHTML = `
+                <div class="flex justify-between border-b border-slate-200 pb-2">
+                    <span class="text-slate-500">Customer</span>
+                    <span class="font-bold text-slate-800 text-right">${name}<br><span class="text-xs font-normal text-slate-500">${phone}</span></span>
+                </div>
+                <div class="flex justify-between border-b border-slate-200 py-2">
+                    <span class="text-slate-500">Delivery via</span>
+                    <span class="font-bold text-violet-600">${method}</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-200 py-2">
+                    <span class="text-slate-500">Order Items</span>
+                    <span class="font-bold text-slate-800 text-right">${qty}x ${printType} ${urgentBadge}</span>
+                </div>
+                <div class="flex justify-between pt-2">
+                    <span class="text-slate-500">Attachments</span>
+                    <div class="text-right text-xs space-y-1">
+                        <div>${fileTag}</div>
+                        <div>${voiceTag}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function goToStep(step) {
+            if (step === 2 && !validateStep1()) return;
+            if (step === 3) populateReview(); // Step 2 doesn't have strict mandatory validation
+
+            // Hide all steps
+            ['step1', 'step2', 'step3', 'stepSuccess'].forEach(id => {
+                const el = document.getElementById(id);
+                el.classList.add('hidden');
+                el.classList.remove('animate-fade-in');
+            });
+
+            // Show target step
+            const targetEl = document.getElementById('step' + (step === 4 ? 'Success' : step));
+            targetEl.classList.remove('hidden');
+            
+            // Trigger reflow for animation
+            void targetEl.offsetWidth;
+            targetEl.classList.add('animate-fade-in');
+            
+            currentStep = step;
+            updateProgressBar(step);
+
+            // Hide header if success
+            if(step === 4) document.getElementById('headerSection').style.display = 'none';
+        }
+
+        // Delivery Logic
+        function toggleDeliveryFields() {
+            const methodEl = document.querySelector('input[name="deliveryMethod"]:checked');
+            if(!methodEl) return;
+            
+            const method = methodEl.value;
+            const container = document.getElementById('dynamicDeliveryContainer');
+            
+            document.getElementById('homeDeliveryField').classList.add('hidden');
+            document.getElementById('whatsappField').classList.add('hidden');
+            document.getElementById('emailField').classList.add('hidden');
+
+            container.classList.remove('hidden');
+
+            if (method === 'Home Delivery') document.getElementById('homeDeliveryField').classList.remove('hidden');
+            else if (method === 'WhatsApp') document.getElementById('whatsappField').classList.remove('hidden');
+            else if (method === 'Email') document.getElementById('emailField').classList.remove('hidden');
+        }
+
+        // File Logic
+        function showFileTags(input) {
+            const list = document.getElementById('fileList');
+            list.innerHTML = '';
+            if(input.files.length === 0) return;
+
+            Array.from(input.files).forEach(f => {
+                list.innerHTML += `
+                    <div class="bg-violet-100 text-violet-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm max-w-[150px]">
+                        <i class="ph ph-file-text text-lg"></i>
+                        <span class="truncate">${f.name}</span>
+                    </div>`;
+            });
+        }
+
+        // Voice Logic
         let mediaRecorder;
         let audioChunks = [];
         let audioBlob = null;
 
-        // --- Delivery Logic ---
-        function toggleDeliveryFields() {
-            const method = document.getElementById('deliveryMethod').value;
-            
-            const homeField = document.getElementById('homeDeliveryField');
-            const homeInput = document.getElementById('homeAddress');
-            
-            const whatsappField = document.getElementById('whatsappField');
-            const whatsappInput = document.getElementById('whatsappNumber');
-            
-            const emailField = document.getElementById('emailField');
-            const emailInput = document.getElementById('emailAddress');
-
-            // Hide all first and remove required attribute
-            homeField.classList.add('hidden');
-            homeInput.removeAttribute('required');
-            whatsappField.classList.add('hidden');
-            whatsappInput.removeAttribute('required');
-            emailField.classList.add('hidden');
-            emailInput.removeAttribute('required');
-
-            // Show relevant field and make it mandatory based on selection
-            if (method === 'Home Delivery') {
-                homeField.classList.remove('hidden');
-                homeInput.setAttribute('required', 'true');
-            } else if (method === 'WhatsApp') {
-                whatsappField.classList.remove('hidden');
-                whatsappInput.setAttribute('required', 'true');
-            } else if (method === 'Email') {
-                emailField.classList.remove('hidden');
-                emailInput.setAttribute('required', 'true');
-            }
-        }
-
-        // --- Voice Logic ---
         async function toggleRecording() {
             const btn = document.getElementById('recordBtn');
-            const status = document.getElementById('recordStatus');
-
             if (!mediaRecorder || mediaRecorder.state === "inactive") {
-                // Start Recording
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     mediaRecorder = new MediaRecorder(stream);
@@ -155,26 +436,21 @@
                     btn.classList.add('bg-red-500', 'text-white', 'animate-pulse');
                     btn.classList.remove('bg-red-50', 'text-red-500');
                     btn.innerHTML = '<i class="ph ph-stop"></i>';
-                    status.textContent = "Recording...";
                     
                     audioChunks = [];
                     mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
                     mediaRecorder.onstop = () => {
-                        // FIX: Browser MediaRecorder cannot reliably encode mp3. Use webm.
-                        audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                        const audioUrl = URL.createObjectURL(audioBlob);
-                        document.getElementById('audioPlayer').src = audioUrl;
+                        const mimeType = mediaRecorder.mimeType || 'audio/webm';
+                        audioBlob = new Blob(audioChunks, { type: mimeType });
+                        document.getElementById('audioPlayer').src = URL.createObjectURL(audioBlob);
                         document.getElementById('audioPreview').classList.remove('hidden');
                         document.getElementById('recordBtn').classList.add('hidden');
-                        status.textContent = "Recorded";
-                        // FIX: Kill tracks AFTER encoding finishes, not before.
                         mediaRecorder.stream.getTracks().forEach(track => track.stop());
                     };
-                } catch (err) { alert("Microphone access denied"); }
+                } catch (err) { alert("Microphone access denied. Please allow permissions in your browser."); }
             } else {
-                // Stop Recording
                 mediaRecorder.stop();
-                btn.className = "w-12 h-12 rounded-full bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center text-xl transition-all";
+                btn.className = "w-12 h-12 rounded-full bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center text-xl transition-all shadow-sm";
             }
         }
 
@@ -183,98 +459,90 @@
             document.getElementById('audioPreview').classList.add('hidden');
             document.getElementById('recordBtn').classList.remove('hidden');
             document.getElementById('recordBtn').innerHTML = '<i class="ph ph-microphone"></i>';
-            document.getElementById('recordStatus').textContent = "Tap to record";
         }
 
-        function showFileCount(input) {
-            const count = input.files.length;
-            document.getElementById('fileList').textContent = count > 0 ? `${count} files selected` : '';
-        }
-
-        // --- Submit Logic ---
+        // Submit Logic
         async function submitOrder(e) {
             e.preventDefault();
             const loader = document.getElementById('loader');
             const loaderText = document.getElementById('loaderText');
-            const btn = document.getElementById('submitBtn');
             
-            // Check payload to update loader text dynamically
             const hasFiles = document.getElementById('files').files.length > 0;
             const hasVoice = audioBlob !== null;
 
-            if (hasFiles && hasVoice) {
-                loaderText.textContent = "Uploading files and voice note...";
-            } else if (hasFiles) {
-                loaderText.textContent = "Uploading files...";
-            } else if (hasVoice) {
-                loaderText.textContent = "Uploading voice note...";
-            } else {
-                loaderText.textContent = "Submitting order...";
-            }
+            if (hasFiles && hasVoice) loaderText.textContent = "Uploading files and voice note...";
+            else if (hasFiles) loaderText.textContent = "Uploading securely...";
+            else if (hasVoice) loaderText.textContent = "Uploading voice note...";
+            else loaderText.textContent = "Finalizing order...";
 
             loader.classList.remove('hidden');
             
             try {
-                // Ensure user is authenticated anonymously before writing to Firebase Storage/Firestore
-                if (!auth.currentUser) {
-                    await auth.signInAnonymously();
-                }
+                if (!auth.currentUser) await auth.signInAnonymously();
 
                 const timestamp = Date.now();
                 const name = document.getElementById('name').value;
-                const safeName = name.replace(/[^a-zA-Z0-9.-]/g, '_'); // CRITICAL FIX: Sanitize name
-                const uploadTasks = [];
+                const safeName = name.replace(/[^a-zA-Z0-9.-]/g, '_'); 
                 let audioUrl = null;
                 let fileUrls = [];
 
-                // 1. Upload Audio
                 if (audioBlob) {
-                    // FIX: Match the extension with the blob type (webm)
-                    const audioRef = storage.ref(`orders/${timestamp}_${safeName}/voice_note.webm`);
-                    await audioRef.put(audioBlob);
+                    const ext = audioBlob.type.includes('mp4') ? 'mp4' : 'webm';
+                    const audioRef = storage.ref(`orders/${timestamp}_${safeName}/voice_note.${ext}`);
+                    await audioRef.put(audioBlob, { contentType: audioBlob.type });
                     audioUrl = await audioRef.getDownloadURL();
                 }
 
-                // 2. Upload Files
                 const files = document.getElementById('files').files;
                 for (let i = 0; i < files.length; i++) {
                     const file = files[i];
                     const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
                     const fileRef = storage.ref(`orders/${timestamp}_${safeName}/${cleanFileName}`);
                     await fileRef.put(file);
-                    const url = await fileRef.getDownloadURL();
-                    fileUrls.push({ name: file.name, url: url });
+                    fileUrls.push({ name: file.name, url: await fileRef.getDownloadURL() });
                 }
 
-                // 3. Save to Firestore
-                const deliveryMethod = document.getElementById('deliveryMethod').value;
+                const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked').value;
                 let deliveryDetails = {};
-                
-                if (deliveryMethod === 'Home Delivery') {
-                    deliveryDetails.homeAddress = document.getElementById('homeAddress').value;
-                } else if (deliveryMethod === 'WhatsApp') {
-                    deliveryDetails.whatsappNumber = document.getElementById('whatsappNumber').value;
-                } else if (deliveryMethod === 'Email') {
-                    deliveryDetails.emailAddress = document.getElementById('emailAddress').value;
-                }
+                if (deliveryMethod === 'Home Delivery') deliveryDetails.homeAddress = document.getElementById('homeAddress').value;
+                else if (deliveryMethod === 'WhatsApp') deliveryDetails.whatsappNumber = document.getElementById('whatsappNumber').value;
+                else if (deliveryMethod === 'Email') deliveryDetails.emailAddress = document.getElementById('emailAddress').value;
+
+                // Combine printing details into a formatted string to match the manager dashboard requirements
+                const printType = document.getElementById('printType').value;
+                const printSize = document.getElementById('printSize').value;
+                const qty = document.getElementById('printQty').value;
+                const colorMode = document.getElementById('colorMode').value;
+                const paperType = document.getElementById('paperType').value;
+                const isUrgent = document.getElementById('isUrgent').checked;
+                const extraDetails = document.getElementById('details').value;
+
+                const formattedDetails = `Type: ${printType}\nSize: ${printSize}\nQty: ${qty}\nColor: ${colorMode}\nPaper: ${paperType}\nUrgent: ${isUrgent ? 'YES' : 'NO'}\n\nInstructions:\n${extraDetails}`;
+
+                // Create a Reference Number
+                const refNum = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
 
                 await db.collection('requests').add({
                     customerName: name,
                     phone: document.getElementById('phone').value,
                     deliveryMethod: deliveryMethod,
                     ...deliveryDetails,
-                    details: document.getElementById('details').value,
+                    details: formattedDetails,
+                    printConfig: { type: printType, size: printSize, qty: qty, color: colorMode, paper: paperType, urgent: isUrgent },
                     audioUrl: audioUrl,
                     attachmentUrls: fileUrls,
                     status: 'pending',
+                    referenceNumber: refNum,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-                alert("Order Sent Successfully!");
-                window.location.reload();
+                loader.classList.add('hidden');
+                document.getElementById('refNumber').textContent = refNum;
+                goToStep(4); // Show Success Screen
+
             } catch (err) {
                 console.error(err);
-                alert("Error sending order: " + err.message);
+                alert("Sorry, an error occurred while sending your order. Please try again.");
                 loader.classList.add('hidden');
             }
         }
