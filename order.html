@@ -32,9 +32,9 @@
         const storage = firebase.storage();
     </script>
 </head>
-<body class="bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 text-slate-800 min-h-screen flex flex-col items-center justify-center p-4 sm:p-6 font-sans">
+<body class="bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 text-slate-800 min-h-screen flex flex-col items-center justify-center p-0 sm:p-6 font-sans">
 
-    <div class="w-full max-w-lg bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border border-white">
+    <div class="w-full max-w-lg bg-white sm:bg-white/80 backdrop-blur-xl rounded-none sm:rounded-3xl shadow-none sm:shadow-2xl overflow-hidden border-0 sm:border border-white min-h-screen sm:min-h-fit">
         
         <div class="bg-gradient-to-r from-violet-600 to-fuchsia-600 p-6 text-white text-center relative" id="headerSection">
             <h1 class="text-2xl font-bold mb-1">Send an Order</h1>
@@ -53,9 +53,9 @@
             </div>
         </div>
 
-        <form id="orderForm" onsubmit="submitOrder(event)" class="relative min-h-[400px]">
+        <form id="orderForm" onsubmit="submitOrder(event)">
             
-            <div id="step1" class="p-6 space-y-5 animate-fade-in absolute w-full top-0 left-0">
+            <div id="step1" class="p-6 space-y-5 animate-fade-in">
                 <h2 class="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">
                     <span class="w-6 h-6 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-xs">1</span>
                     Your Information
@@ -76,7 +76,7 @@
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-3 ml-1">How should we deliver?</label>
                     <div class="grid grid-cols-3 gap-3">
                         <label class="cursor-pointer relative">
-                            <input type="radio" name="deliveryMethod" value="Home Delivery" class="peer sr-only" onchange="toggleDeliveryFields()">
+                            <input type="radio" name="deliveryMethod" value="Home Delivery" class="peer sr-only" onclick="toggleDeliveryFields()" onchange="toggleDeliveryFields()">
                             <div class="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-center hover:bg-violet-50 peer-checked:bg-violet-50 peer-checked:border-violet-500 peer-checked:text-violet-700 transition-all">
                                 <i class="ph ph-house text-2xl mb-1"></i>
                                 <span class="block text-[10px] font-bold uppercase">Home</span>
@@ -84,7 +84,7 @@
                             <div class="absolute -top-1 -right-1 w-4 h-4 bg-violet-500 text-white rounded-full flex items-center justify-center opacity-0 peer-checked:opacity-100 transition-opacity"><i class="ph ph-check text-[10px]"></i></div>
                         </label>
                         <label class="cursor-pointer relative">
-                            <input type="radio" name="deliveryMethod" value="WhatsApp" class="peer sr-only" onchange="toggleDeliveryFields()">
+                            <input type="radio" name="deliveryMethod" value="WhatsApp" class="peer sr-only" onclick="toggleDeliveryFields()" onchange="toggleDeliveryFields()">
                             <div class="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-center hover:bg-violet-50 peer-checked:bg-violet-50 peer-checked:border-violet-500 peer-checked:text-violet-700 transition-all">
                                 <i class="ph ph-whatsapp-logo text-2xl mb-1"></i>
                                 <span class="block text-[10px] font-bold uppercase">WhatsApp</span>
@@ -92,7 +92,7 @@
                             <div class="absolute -top-1 -right-1 w-4 h-4 bg-violet-500 text-white rounded-full flex items-center justify-center opacity-0 peer-checked:opacity-100 transition-opacity"><i class="ph ph-check text-[10px]"></i></div>
                         </label>
                         <label class="cursor-pointer relative">
-                            <input type="radio" name="deliveryMethod" value="Email" class="peer sr-only" onchange="toggleDeliveryFields()">
+                            <input type="radio" name="deliveryMethod" value="Email" class="peer sr-only" onclick="toggleDeliveryFields()" onchange="toggleDeliveryFields()">
                             <div class="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-center hover:bg-violet-50 peer-checked:bg-violet-50 peer-checked:border-violet-500 peer-checked:text-violet-700 transition-all">
                                 <i class="ph ph-envelope text-2xl mb-1"></i>
                                 <span class="block text-[10px] font-bold uppercase">Email</span>
@@ -121,7 +121,7 @@
                 </div>
             </div>
 
-            <div id="step2" class="p-6 space-y-6 hidden absolute w-full top-0 left-0 bg-white z-10">
+            <div id="step2" class="p-6 space-y-6 hidden bg-white">
                 <h2 class="text-lg font-bold text-slate-700 mb-2 flex items-center gap-2">
                     <span class="w-6 h-6 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-xs">2</span>
                     What do you need?
@@ -132,22 +132,36 @@
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Print Type</label>
                             <select id="printType" class="w-full p-3 bg-white border border-slate-200 rounded-xl focus:border-violet-500 outline-none text-sm font-medium">
-                                <option value="Document / Photocopy">Document / Photocopy</option>
-                                <option value="Visiting Card">Visiting Card</option>
-                                <option value="Flyer / Brochure">Flyer / Brochure</option>
-                                <option value="Banner / Poster">Banner / Poster</option>
-                                <option value="Mug / T-Shirt">Mug / T-Shirt</option>
-                                <option value="Other">Other</option>
+                                <optgroup label="Document & Office">
+                                    <option value="Document / Photocopy">Document / Photocopy</option>
+                                    <option value="Booklet / Magazine">Booklet / Magazine</option>
+                                    <option value="Certificate">Certificate</option>
+                                </optgroup>
+                                <optgroup label="Marketing & Branding">
+                                    <option value="Visiting Card">Visiting Card</option>
+                                    <option value="Flyer / Brochure">Flyer / Brochure</option>
+                                    <option value="Banner / Poster">Banner / Poster</option>
+                                    <option value="Sticker / Label">Sticker / Label</option>
+                                </optgroup>
+                                <optgroup label="Merchandise">
+                                    <option value="Mug Printing">Mug Printing</option>
+                                    <option value="T-Shirt Printing">T-Shirt Printing</option>
+                                    <option value="ID Card">ID Card</option>
+                                </optgroup>
+                                <optgroup label="Other">
+                                    <option value="Other">Other</option>
+                                </optgroup>
                             </select>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Size</label>
-                            <select id="printSize" class="w-full p-3 bg-white border border-slate-200 rounded-xl focus:border-violet-500 outline-none text-sm font-medium">
-                                <option value="A4 (Standard)">A4 (Standard)</option>
-                                <option value="A3 (Large)">A3 (Large)</option>
-                                <option value="Standard Card Size">Standard Card Size</option>
-                                <option value="Custom / Unsure">Custom / Unsure</option>
+                            <select id="printSize" onchange="toggleCustomSize()" class="w-full p-3 bg-white border border-slate-200 rounded-xl focus:border-violet-500 outline-none text-sm font-medium">
+                                <option value="Standard Size (Auto)" selected>Standard Size (Auto)</option>
+                                <option value="A4">A4</option>
+                                <option value="A3">A3</option>
+                                <option value="Custom">Custom Size...</option>
                             </select>
+                            <input type="text" id="customSizeInput" placeholder="e.g. 15x20 cm" class="hidden mt-2 w-full p-3 bg-white border border-slate-200 rounded-xl focus:border-violet-500 outline-none text-sm font-medium">
                         </div>
                     </div>
 
@@ -173,42 +187,42 @@
                         </div>
                     </div>
 
-                    <label class="flex items-center gap-3 p-3 bg-orange-50 border border-orange-100 rounded-xl cursor-pointer hover:bg-orange-100 transition-colors">
-                        <input type="checkbox" id="isUrgent" class="w-5 h-5 rounded text-orange-500 focus:ring-orange-500 border-orange-300">
-                        <span class="text-sm font-bold text-orange-700">Mark as Urgent Order 🔥</span>
-                    </label>
+                    <div class="grid grid-cols-2 gap-3 items-end pt-1">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Deadline Date</label>
+                            <input type="date" id="deadlineDate" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:border-violet-500 outline-none">
+                        </div>
+                        <label class="flex items-center gap-2 p-2.5 bg-orange-50 border border-orange-100 rounded-lg cursor-pointer hover:bg-orange-100 transition-colors h-[42px]">
+                            <input type="checkbox" id="isUrgent" class="w-4 h-4 rounded text-orange-500 focus:ring-orange-500 border-orange-300">
+                            <span class="text-[11px] font-bold text-orange-700 uppercase">Urgent Order 🔥</span>
+                        </label>
+                    </div>
                 </div>
 
                 <div class="space-y-4">
-                    <div>
-                        <label class="flex flex-col items-center justify-center w-full p-6 border-2 border-dashed border-violet-200 bg-violet-50/50 rounded-2xl hover:border-violet-400 cursor-pointer transition-all text-center">
-                            <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm mb-2 text-violet-500">
-                                <i class="ph ph-upload-simple text-2xl"></i>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="flex flex-col items-center justify-center w-full p-4 border-2 border-dashed border-violet-200 bg-violet-50/50 rounded-2xl hover:border-violet-400 cursor-pointer transition-all text-center">
+                            <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm mb-2 text-violet-500">
+                                <i class="ph ph-file-text text-xl"></i>
                             </div>
-                            <span class="block text-sm font-bold text-slate-700">Tap to attach files</span>
-                            <span class="block text-[11px] text-slate-500 mt-1">PDF, JPG, PNG (Max 10MB)</span>
-                            <input type="file" id="files" multiple class="hidden" onchange="showFileTags(this)">
+                            <span class="block text-xs font-bold text-slate-700">Main Files</span>
+                            <span class="block text-[9px] text-slate-500 mt-1">PDF, DOC (Max 10MB)</span>
+                            <input type="file" id="files" multiple class="hidden" onchange="showFileTags(this, 'fileList')">
                         </label>
-                        <div id="fileList" class="mt-3 flex flex-wrap gap-2 justify-center"></div>
+
+                        <label class="flex flex-col items-center justify-center w-full p-4 border-2 border-dashed border-blue-200 bg-blue-50/50 rounded-2xl hover:border-blue-400 cursor-pointer transition-all text-center">
+                            <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm mb-2 text-blue-500">
+                                <i class="ph ph-image text-xl"></i>
+                            </div>
+                            <span class="block text-xs font-bold text-slate-700">Sample Images</span>
+                            <span class="block text-[9px] text-slate-500 mt-1">JPG, PNG (Max 10MB)</span>
+                            <input type="file" id="sampleFiles" multiple accept="image/*" class="hidden" onchange="showFileTags(this, 'sampleList')">
+                        </label>
                     </div>
 
-                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center justify-between gap-4">
-                        <div class="flex-1">
-                            <p class="text-sm font-bold text-slate-700">Add a Voice Note</p>
-                            <p class="text-[11px] text-slate-500">Explain exactly what you need</p>
-                        </div>
-                        
-                        <div class="flex items-center justify-end">
-                            <button type="button" id="recordBtn" onclick="toggleRecording()" class="w-12 h-12 rounded-full bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center text-xl transition-all shadow-sm">
-                                <i class="ph ph-microphone"></i>
-                            </button>
-                            <div id="audioPreview" class="hidden flex items-center gap-2">
-                                <audio id="audioPlayer" controls class="h-10 w-40"></audio>
-                                <button type="button" onclick="clearAudio()" class="w-10 h-10 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center hover:bg-red-100 hover:text-red-500 transition-colors">
-                                    <i class="ph ph-trash text-lg"></i>
-                                </button>
-                            </div>
-                        </div>
+                    <div>
+                        <div id="fileList" class="flex flex-wrap gap-2 justify-center mb-1"></div>
+                        <div id="sampleList" class="flex flex-wrap gap-2 justify-center"></div>
                     </div>
 
                     <textarea id="details" rows="2" placeholder="Any extra instructions? Type here..." class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-violet-500 outline-none transition-all text-sm"></textarea>
@@ -220,7 +234,7 @@
                 </div>
             </div>
 
-            <div id="step3" class="p-6 space-y-6 hidden absolute w-full top-0 left-0 bg-white z-10">
+            <div id="step3" class="p-6 space-y-6 hidden bg-white">
                 <div class="text-center mb-6">
                     <div class="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-3 shadow-sm">
                         <i class="ph ph-magnifying-glass"></i>
@@ -240,7 +254,7 @@
                 </div>
             </div>
 
-            <div id="stepSuccess" class="p-8 hidden absolute w-full top-0 left-0 bg-white z-20 text-center min-h-[400px] flex-col items-center justify-center">
+            <div id="stepSuccess" class="p-8 hidden bg-white text-center min-h-[400px] flex-col items-center justify-center">
                 <div class="w-24 h-24 bg-green-500 text-white rounded-full flex items-center justify-center text-5xl mx-auto mb-6 shadow-xl shadow-green-500/30 animate-bounce">
                     <i class="ph ph-check-circle"></i>
                 </div>
@@ -321,6 +335,18 @@
             return true;
         }
 
+        function toggleCustomSize() {
+            const sizeSelect = document.getElementById('printSize');
+            const customInput = document.getElementById('customSizeInput');
+            if (sizeSelect.value === 'Custom') {
+                customInput.classList.remove('hidden');
+                customInput.setAttribute('required', 'true');
+            } else {
+                customInput.classList.add('hidden');
+                customInput.removeAttribute('required');
+            }
+        }
+
         function populateReview() {
             const name = document.getElementById('name').value;
             const phone = document.getElementById('phone').value;
@@ -330,11 +356,19 @@
             const qty = document.getElementById('printQty').value;
             const isUrgent = document.getElementById('isUrgent').checked;
             
-            const files = document.getElementById('files').files;
-            const hasVoice = audioBlob !== null;
+            const printSizeSelect = document.getElementById('printSize').value;
+            const customSize = document.getElementById('customSizeInput').value;
+            const printSize = (printSizeSelect === 'Custom' && customSize) ? customSize : printSizeSelect;
+            
+            const deadline = document.getElementById('deadlineDate').value;
+            const deadlineText = deadline ? new Date(deadline).toLocaleDateString() : 'Not set';
 
-            let fileTag = files.length > 0 ? `<span class="text-violet-600 font-bold">${files.length} File(s) attached</span>` : `<span class="text-slate-400">No files</span>`;
-            let voiceTag = hasVoice ? `<span class="text-red-500 font-bold"><i class="ph ph-microphone"></i> Voice recorded</span>` : `<span class="text-slate-400">No voice note</span>`;
+            const files = document.getElementById('files').files;
+            const sampleFiles = document.getElementById('sampleFiles').files;
+
+            let fileTag = files.length > 0 ? `<span class="text-violet-600 font-bold">${files.length} Main File(s)</span>` : ``;
+            let sampleTag = sampleFiles.length > 0 ? `<span class="text-blue-600 font-bold">${sampleFiles.length} Sample(s)</span>` : ``;
+            let emptyAttachments = (files.length === 0 && sampleFiles.length === 0) ? `<span class="text-slate-400">No files</span>` : ``;
             let urgentBadge = isUrgent ? `<span class="bg-orange-100 text-orange-600 px-2 py-0.5 rounded text-[10px] font-bold uppercase ml-2">Urgent</span>` : '';
 
             document.getElementById('reviewContent').innerHTML = `
@@ -348,13 +382,18 @@
                 </div>
                 <div class="flex justify-between border-b border-slate-200 py-2">
                     <span class="text-slate-500">Order Items</span>
-                    <span class="font-bold text-slate-800 text-right">${qty}x ${printType} ${urgentBadge}</span>
+                    <span class="font-bold text-slate-800 text-right">${qty}x ${printType} (${printSize}) ${urgentBadge}</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-200 py-2">
+                    <span class="text-slate-500">Deadline</span>
+                    <span class="font-bold text-slate-800">${deadlineText}</span>
                 </div>
                 <div class="flex justify-between pt-2">
                     <span class="text-slate-500">Attachments</span>
                     <div class="text-right text-xs space-y-1">
                         <div>${fileTag}</div>
-                        <div>${voiceTag}</div>
+                        <div>${sampleTag}</div>
+                        <div>${emptyAttachments}</div>
                     </div>
                 </div>
             `;
@@ -362,7 +401,7 @@
 
         function goToStep(step) {
             if (step === 2 && !validateStep1()) return;
-            if (step === 3) populateReview(); // Step 2 doesn't have strict mandatory validation
+            if (step === 3) populateReview();
 
             // Hide all steps
             ['step1', 'step2', 'step3', 'stepSuccess'].forEach(id => {
@@ -406,59 +445,20 @@
         }
 
         // File Logic
-        function showFileTags(input) {
-            const list = document.getElementById('fileList');
+        function showFileTags(input, listId) {
+            const list = document.getElementById(listId);
             list.innerHTML = '';
             if(input.files.length === 0) return;
 
+            const colorClass = listId === 'fileList' ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700';
+
             Array.from(input.files).forEach(f => {
                 list.innerHTML += `
-                    <div class="bg-violet-100 text-violet-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm max-w-[150px]">
-                        <i class="ph ph-file-text text-lg"></i>
+                    <div class="${colorClass} px-3 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-1 shadow-sm max-w-[140px]">
+                        <i class="ph ph-file-text text-sm"></i>
                         <span class="truncate">${f.name}</span>
                     </div>`;
             });
-        }
-
-        // Voice Logic
-        let mediaRecorder;
-        let audioChunks = [];
-        let audioBlob = null;
-
-        async function toggleRecording() {
-            const btn = document.getElementById('recordBtn');
-            if (!mediaRecorder || mediaRecorder.state === "inactive") {
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    mediaRecorder = new MediaRecorder(stream);
-                    mediaRecorder.start();
-                    
-                    btn.classList.add('bg-red-500', 'text-white', 'animate-pulse');
-                    btn.classList.remove('bg-red-50', 'text-red-500');
-                    btn.innerHTML = '<i class="ph ph-stop"></i>';
-                    
-                    audioChunks = [];
-                    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-                    mediaRecorder.onstop = () => {
-                        const mimeType = mediaRecorder.mimeType || 'audio/webm';
-                        audioBlob = new Blob(audioChunks, { type: mimeType });
-                        document.getElementById('audioPlayer').src = URL.createObjectURL(audioBlob);
-                        document.getElementById('audioPreview').classList.remove('hidden');
-                        document.getElementById('recordBtn').classList.add('hidden');
-                        mediaRecorder.stream.getTracks().forEach(track => track.stop());
-                    };
-                } catch (err) { alert("Microphone access denied. Please allow permissions in your browser."); }
-            } else {
-                mediaRecorder.stop();
-                btn.className = "w-12 h-12 rounded-full bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center text-xl transition-all shadow-sm";
-            }
-        }
-
-        function clearAudio() {
-            audioBlob = null;
-            document.getElementById('audioPreview').classList.add('hidden');
-            document.getElementById('recordBtn').classList.remove('hidden');
-            document.getElementById('recordBtn').innerHTML = '<i class="ph ph-microphone"></i>';
         }
 
         // Submit Logic
@@ -468,11 +468,9 @@
             const loaderText = document.getElementById('loaderText');
             
             const hasFiles = document.getElementById('files').files.length > 0;
-            const hasVoice = audioBlob !== null;
+            const hasSamples = document.getElementById('sampleFiles').files.length > 0;
 
-            if (hasFiles && hasVoice) loaderText.textContent = "Uploading files and voice note...";
-            else if (hasFiles) loaderText.textContent = "Uploading securely...";
-            else if (hasVoice) loaderText.textContent = "Uploading voice note...";
+            if (hasFiles || hasSamples) loaderText.textContent = "Uploading files securely...";
             else loaderText.textContent = "Finalizing order...";
 
             loader.classList.remove('hidden');
@@ -483,16 +481,9 @@
                 const timestamp = Date.now();
                 const name = document.getElementById('name').value;
                 const safeName = name.replace(/[^a-zA-Z0-9.-]/g, '_'); 
-                let audioUrl = null;
                 let fileUrls = [];
 
-                if (audioBlob) {
-                    const ext = audioBlob.type.includes('mp4') ? 'mp4' : 'webm';
-                    const audioRef = storage.ref(`orders/${timestamp}_${safeName}/voice_note.${ext}`);
-                    await audioRef.put(audioBlob, { contentType: audioBlob.type });
-                    audioUrl = await audioRef.getDownloadURL();
-                }
-
+                // Upload Main Files
                 const files = document.getElementById('files').files;
                 for (let i = 0; i < files.length; i++) {
                     const file = files[i];
@@ -502,22 +493,35 @@
                     fileUrls.push({ name: file.name, url: await fileRef.getDownloadURL() });
                 }
 
+                // Upload Sample Images
+                const sampleFiles = document.getElementById('sampleFiles').files;
+                for (let i = 0; i < sampleFiles.length; i++) {
+                    const file = sampleFiles[i];
+                    const cleanFileName = "Sample_" + file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+                    const fileRef = storage.ref(`orders/${timestamp}_${safeName}/${cleanFileName}`);
+                    await fileRef.put(file);
+                    fileUrls.push({ name: "[Sample] " + file.name, url: await fileRef.getDownloadURL() });
+                }
+
                 const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked').value;
                 let deliveryDetails = {};
                 if (deliveryMethod === 'Home Delivery') deliveryDetails.homeAddress = document.getElementById('homeAddress').value;
                 else if (deliveryMethod === 'WhatsApp') deliveryDetails.whatsappNumber = document.getElementById('whatsappNumber').value;
                 else if (deliveryMethod === 'Email') deliveryDetails.emailAddress = document.getElementById('emailAddress').value;
 
-                // Combine printing details into a formatted string to match the manager dashboard requirements
+                // Format Details for Admin Dashboard
                 const printType = document.getElementById('printType').value;
-                const printSize = document.getElementById('printSize').value;
+                const printSizeSelect = document.getElementById('printSize').value;
+                const customSize = document.getElementById('customSizeInput').value;
+                const printSize = (printSizeSelect === 'Custom' && customSize) ? customSize : printSizeSelect;
                 const qty = document.getElementById('printQty').value;
                 const colorMode = document.getElementById('colorMode').value;
                 const paperType = document.getElementById('paperType').value;
+                const deadline = document.getElementById('deadlineDate').value;
                 const isUrgent = document.getElementById('isUrgent').checked;
                 const extraDetails = document.getElementById('details').value;
 
-                const formattedDetails = `Type: ${printType}\nSize: ${printSize}\nQty: ${qty}\nColor: ${colorMode}\nPaper: ${paperType}\nUrgent: ${isUrgent ? 'YES' : 'NO'}\n\nInstructions:\n${extraDetails}`;
+                const formattedDetails = `Type: ${printType}\nSize: ${printSize}\nQty: ${qty}\nColor: ${colorMode}\nPaper: ${paperType}\nDeadline: ${deadline || 'Not Set'}\nUrgent: ${isUrgent ? 'YES' : 'NO'}\n\nInstructions:\n${extraDetails}`;
 
                 // Create a Reference Number
                 const refNum = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
@@ -528,8 +532,8 @@
                     deliveryMethod: deliveryMethod,
                     ...deliveryDetails,
                     details: formattedDetails,
-                    printConfig: { type: printType, size: printSize, qty: qty, color: colorMode, paper: paperType, urgent: isUrgent },
-                    audioUrl: audioUrl,
+                    printConfig: { type: printType, size: printSize, qty: qty, color: colorMode, paper: paperType, deadline: deadline, urgent: isUrgent },
+                    audioUrl: null, // Voice note removed
                     attachmentUrls: fileUrls,
                     status: 'pending',
                     referenceNumber: refNum,
